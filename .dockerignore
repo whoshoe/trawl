@@ -1,0 +1,13 @@
+**/node_modules
+**/.nuxt
+**/.output
+**/.vitepress/dist
+**/.vitepress/cache
+**/dist
+**/.env
+**/.env.*
+!**/.env.example
+**/*.md
+!apps/docs/**/*.md
+.github/
+docker-compose*.yml
