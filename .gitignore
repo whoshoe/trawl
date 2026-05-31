@@ -1,0 +1,10 @@
+node_modules/
+.DS_Store
+.env
+.nuxt/
+.output/
+apps/docs/.vitepress/cache/
+apps/docs/.vitepress/dist/
+*.tsbuildinfo
+dist/
+.turbo/
