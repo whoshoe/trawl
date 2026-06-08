@@ -1,0 +1,19 @@
+services:
+  redis:
+    image: redis:7-alpine
+    volumes:
+      - redis_data:/data
+
+  trawl:
+    image: ghcr.io/germondai/trawl:latest
+    ports:
+      - "8191:8191"
+    shm_size: 1gb
+    environment:
+      REDIS_URL: redis://redis:6379
+      BROWSER_POOL_SIZE: 3
+    depends_on:
+      - redis
+
+volumes:
+  redis_data:
