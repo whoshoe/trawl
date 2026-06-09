@@ -1,0 +1,25 @@
+services:
+  redis:
+    image: redis:7-alpine
+    restart: always
+    volumes:
+      - redis_data:/data
+
+  trawl:
+    image: ghcr.io/germondai/trawl:latest
+    restart: always
+    ports:
+      - "8191:8191"
+    shm_size: 1gb
+    mem_limit: 3g
+    environment:
+      REDIS_URL: redis://redis:6379
+      BROWSER_POOL_SIZE: 5
+    depends_on:
+      - redis
+    healthcheck:
+      test: wget -qO- http://localhost:8191/health
+      interval: 30s
+
+volumes:
+  redis_data:
