@@ -1,0 +1,21 @@
+{
+  "name": "@trawl/web",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "nuxt dev",
+    "build": "nuxt generate",
+    "typecheck": "nuxt typecheck"
+  },
+  "dependencies": {
+    "@nuxt/fonts": "^0.14.0",
+    "@nuxtjs/color-mode": "^4.0.1",
+    "@nuxtjs/seo": "^5.3.1",
+    "@vueuse/motion": "^3.0.3",
+    "nuxt": "^4.4.8"
+  },
+  "devDependencies": {
+    "typescript": "^6.0.3",
+    "vue-tsc": "^3.3.5"
+  }
+}
