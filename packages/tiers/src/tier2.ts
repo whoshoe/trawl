@@ -17,6 +17,7 @@ export async function runTier2(
   handle: BrowserHandle,
   session: SessionData,
   maxTimeout: number,
+  extraHeaders?: Record<string, string>,
 ): Promise<Tier2Result> {
   const start = Date.now()
   const page = await handle.context.newPage()
@@ -39,6 +40,12 @@ export async function runTier2(
     )
 
     await page.setExtraHTTPHeaders({ "User-Agent": session.userAgent })
+
+    if (extraHeaders && Object.keys(extraHeaders).length > 0) {
+      await page.route(url, (route: { request(): { headers(): Record<string, string> }; continue(o: object): Promise<void> }) =>
+        route.continue({ headers: { ...route.request().headers(), ...extraHeaders } }),
+      )
+    }
 
     let statusCode = 200
     page.on("response", (res: { url(): string; status(): number }) => {

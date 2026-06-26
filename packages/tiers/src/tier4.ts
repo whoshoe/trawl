@@ -18,6 +18,7 @@ export async function runTier4(
   handle: BrowserHandle,
   maxTimeout: number,
   proxyUrl: string,
+  extraHeaders?: Record<string, string>,
 ): Promise<Tier4Result> {
   const start = Date.now()
 
@@ -53,6 +54,13 @@ export async function runTier4(
     })
 
     const page = await proxyContext.newPage()
+
+    if (extraHeaders && Object.keys(extraHeaders).length > 0) {
+      await page.route(url, (route: { request(): { headers(): Record<string, string> }; continue(o: object): Promise<void> }) =>
+        route.continue({ headers: { ...route.request().headers(), ...extraHeaders } }),
+      )
+    }
+
     let statusCode = 200
     page.on("response", (res: { url(): string; status(): number }) => {
       try {

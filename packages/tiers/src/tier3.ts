@@ -20,6 +20,7 @@ export async function runTier3(
   handle: BrowserHandle,
   maxTimeout: number,
   _proxyUrl?: string,
+  extraHeaders?: Record<string, string>,
 ): Promise<Tier3Result> {
   const start = Date.now()
 
@@ -32,6 +33,12 @@ export async function runTier3(
   const page = await freshCtx.newPage()
 
   try {
+    if (extraHeaders && Object.keys(extraHeaders).length > 0) {
+      await page.route(url, (route: { request(): { headers(): Record<string, string> }; continue(o: object): Promise<void> }) =>
+        route.continue({ headers: { ...route.request().headers(), ...extraHeaders } }),
+      )
+    }
+
     let statusCode = 200
     page.on("response", (res: { url(): string; status(): number }) => {
       try {
