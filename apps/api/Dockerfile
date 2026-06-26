@@ -1,16 +1,13 @@
-FROM mcr.microsoft.com/playwright:v1.49.0-jammy AS builder
-
-COPY --from=oven/bun:1.3.14 /usr/local/bin/bun /usr/local/bin/bun
-
+# ── Stage 1: install workspace deps (runs natively on build host) ──────────────
+FROM --platform=$BUILDPLATFORM oven/bun:1.3.14 AS deps
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y ffmpeg unzip && rm -rf /var/lib/apt/lists/*
-
-ENV CAMOUFOX_INSTALL_DIR=/opt/camoufox
+# nodejs/python3/make/g++ are needed to compile better-sqlite3 (camoufox-js dep)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    nodejs npm python3 make g++ \
+    && rm -rf /var/lib/apt/lists/*
 
 COPY package.json bun.lock* ./
-
-# Bun requires every workspace package.json present during install
 COPY packages/types/package.json   ./packages/types/
 COPY packages/browser/package.json ./packages/browser/
 COPY packages/tiers/package.json   ./packages/tiers/
@@ -20,46 +17,59 @@ COPY apps/docs/package.json        ./apps/docs/
 
 RUN bun install --frozen-lockfile
 
-# Separate layer — only re-runs when camoufox-js version changes, not on source edits
-RUN bun x camoufox-js fetch
-
-COPY packages/types/   ./packages/types/
-COPY packages/browser/ ./packages/browser/
-COPY packages/tiers/   ./packages/tiers/
-COPY apps/api/         ./apps/api/
-
-# Runtime — Ubuntu without the Playwright browser binaries (~3 GB saved)
-FROM ubuntu:22.04
-
-ENV DEBIAN_FRONTEND=noninteractive
-
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    libatk1.0-0 libatk-bridge2.0-0 libatspi2.0-0 \
-    libcairo2 libcairo-gobject2 \
-    libdbus-1-3 libdbus-glib-1-2 \
-    libfontconfig1 \
-    libgdk-pixbuf-2.0-0 \
-    libglib2.0-0 \
-    libgtk-3-0 \
-    libnspr4 libnss3 \
-    libpango-1.0-0 libpangocairo-1.0-0 \
-    libx11-6 libx11-xcb1 libxcb1 libxcb-shm0 \
-    libxcomposite1 libxcursor1 libxdamage1 \
-    libxext6 libxfixes3 libxi6 libxrandr2 libxrender1 libxss1 libxtst6 \
-    libdrm2 libgbm1 \
-    libasound2 \
-    fonts-liberation \
-    ffmpeg \
-    && rm -rf /var/lib/apt/lists/*
-
-COPY --from=oven/bun:1.3.14 /usr/local/bin/bun /usr/local/bin/bun
-COPY --from=builder /opt/camoufox /opt/camoufox
-COPY --from=builder /app /app
-
+# ── Stage 2: fetch the Camoufox Firefox binary for the target platform ─────────
+FROM oven/bun:1.3.14 AS camoufox
 ENV CAMOUFOX_INSTALL_DIR=/opt/camoufox
 
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    nodejs npm python3 make g++ \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN bun x camoufox-js fetch
+
+# ── Stage 3: lean runtime (only API-required files) ────────────────────────────
+FROM ubuntu:22.04
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt/lists,sharing=locked \
+    apt-get update && apt-get install -y --no-install-recommends \
+      libatk1.0-0 libatk-bridge2.0-0 libatspi2.0-0 \
+      libcairo2 libcairo-gobject2 \
+      libdbus-1-3 libdbus-glib-1-2 \
+      libfontconfig1 \
+      libgdk-pixbuf-2.0-0 \
+      libglib2.0-0 \
+      libgtk-3-0 \
+      libnspr4 libnss3 \
+      libpango-1.0-0 libpangocairo-1.0-0 \
+      libx11-6 libx11-xcb1 libxcb1 libxcb-shm0 \
+      libxcomposite1 libxcursor1 libxdamage1 \
+      libxext6 libxfixes3 libxi6 libxrandr2 libxrender1 libxss1 libxtst6 \
+      libdrm2 libgbm1 \
+      libasound2 \
+      fonts-liberation \
+      ffmpeg \
+      ca-certificates \
+    && apt-get clean
+
+COPY --from=oven/bun:1.3.14  /usr/local/bin/bun /usr/local/bin/bun
+COPY --from=camoufox          /opt/camoufox      /opt/camoufox
+COPY --from=deps              /app/node_modules  /app/node_modules
+
+COPY packages/types/   /app/packages/types/
+COPY packages/browser/ /app/packages/browser/
+COPY packages/tiers/   /app/packages/tiers/
+COPY apps/api/         /app/apps/api/
+COPY package.json      /app/
+
+# Workspace node_modules (relative symlinks into root .bun/ tree — must come after source COPY)
+COPY --from=deps /app/apps/api/node_modules          /app/apps/api/node_modules
+COPY --from=deps /app/packages/browser/node_modules  /app/packages/browser/node_modules
+COPY --from=deps /app/packages/types/node_modules    /app/packages/types/node_modules
+COPY --from=deps /app/packages/tiers/node_modules    /app/packages/tiers/node_modules
+
+ENV CAMOUFOX_INSTALL_DIR=/opt/camoufox
 WORKDIR /app
-
 EXPOSE 8191
-
 CMD ["bun", "run", "apps/api/src/index.ts"]
