@@ -64,6 +64,7 @@ const rows = [
   { feature: "reCAPTCHA v2 solving", trawl: "✓ audio STT (free)", flaresolver: "✗", byparr: "✗" },
   { feature: "hCaptcha solving", trawl: "✓ auto-pass", flaresolver: "✗", byparr: "✗" },
   { feature: "GeeTest v4 solving", trawl: "✓ canvas gap detection", flaresolver: "✗", byparr: "✗" },
+  { feature: "Custom headers (all tiers)", trawl: "✓ all 4 tiers", flaresolver: "✗", byparr: "✗" },
   { feature: "Proxy escalation", trawl: "✓ DC + residential", flaresolver: "✗", byparr: "~" },
   { feature: "Self-healing pool", trawl: "✓", flaresolver: "✗", byparr: "✗" },
   { feature: "FlareSolverr v2 compat", trawl: "✓", flaresolver: "✓ native", byparr: "✓" },
