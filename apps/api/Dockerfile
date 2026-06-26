@@ -15,7 +15,8 @@ COPY apps/api/package.json         ./apps/api/
 COPY apps/web/package.json         ./apps/web/
 COPY apps/docs/package.json        ./apps/docs/
 
-RUN bun install --frozen-lockfile
+# --production skips devDependencies (vitepress + algolia from docs, typescript, @types)
+RUN bun install --frozen-lockfile --production
 
 # ── Stage 2: fetch the Camoufox Firefox binary for the target platform ─────────
 FROM oven/bun:1.3.14 AS camoufox
@@ -25,7 +26,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     nodejs npm python3 make g++ \
     && rm -rf /var/lib/apt/lists/*
 
-RUN bun x camoufox-js fetch
+RUN bun x camoufox-js fetch \
+    && rm -rf /opt/camoufox/fonts/macos /opt/camoufox/fonts/windows
 
 # ── Stage 3: lean runtime (only API-required files) ────────────────────────────
 FROM ubuntu:22.04
@@ -49,7 +51,6 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
       libdrm2 libgbm1 \
       libasound2 \
       fonts-liberation \
-      ffmpeg \
       ca-certificates \
     && apt-get clean
 
@@ -64,9 +65,9 @@ COPY apps/api/         /app/apps/api/
 COPY package.json      /app/
 
 # Workspace node_modules (relative symlinks into root .bun/ tree — must come after source COPY)
+# packages/types has no production deps so no node_modules dir is created
 COPY --from=deps /app/apps/api/node_modules          /app/apps/api/node_modules
 COPY --from=deps /app/packages/browser/node_modules  /app/packages/browser/node_modules
-COPY --from=deps /app/packages/types/node_modules    /app/packages/types/node_modules
 COPY --from=deps /app/packages/tiers/node_modules    /app/packages/tiers/node_modules
 
 ENV CAMOUFOX_INSTALL_DIR=/opt/camoufox
