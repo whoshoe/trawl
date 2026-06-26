@@ -9,7 +9,7 @@ export interface Tier1Result extends TierResult {
   statusCode?: number
 }
 
-export async function runTier1(url: string): Promise<Tier1Result> {
+export async function runTier1(url: string, extraHeaders?: Record<string, string>): Promise<Tier1Result> {
   const start = Date.now()
   try {
     const res = await fetch(url, {
@@ -20,6 +20,7 @@ export async function runTier1(url: string): Promise<Tier1Result> {
         "Accept-Encoding": "gzip, deflate, br",
         "Cache-Control": "no-cache",
         Pragma: "no-cache",
+        ...extraHeaders,
       },
       redirect: "follow",
     })

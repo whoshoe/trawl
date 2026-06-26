@@ -15,6 +15,7 @@ export interface ScrapeRequest {
   skipHttp?: boolean
   maxTier?: 1 | 2 | 3 | 4
   sessionId?: string
+  headers?: Record<string, string>
 }
 
 export interface TierResult {
