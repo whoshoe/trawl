@@ -18,13 +18,18 @@ COPY apps/docs/package.json        ./apps/docs/
 # --production skips devDependencies (vitepress + algolia from docs, typescript, @types)
 RUN bun install --frozen-lockfile --production
 
-# ── Stage 2: fetch the Camoufox Firefox binary for the target platform ─────────
+# ── Stage 2: fetch the Camoufox Firefox binary ─────────
 FROM oven/bun:1.3.14 AS camoufox
 ENV CAMOUFOX_INSTALL_DIR=/opt/camoufox
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    nodejs npm python3 make g++ \
-    && rm -rf /var/lib/apt/lists/*
+    nodejs npm python3 make g++ && rm -rf /var/lib/apt/lists/*
+
+# Use BuildKit cache for the download
+RUN --mount=type=secret,id=GITHUB_TOKEN,env=GITHUB_TOKEN \
+    --mount=type=cache,target=/root/.cache/camoufox,sharing=locked \
+    bun x camoufox-js fetch \
+    && rm -rf /opt/camoufox/fonts/macos /opt/camoufox/fonts/windows
 
 # Secret mount keeps GITHUB_TOKEN out of image layers.
 # Token prevents GitHub API rate-limits that cause the binary download to stall.
