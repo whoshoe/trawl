@@ -17,6 +17,7 @@ const features = [
   {
     icon: "⟁",
     title: "Cloudflare Bypass",
+    badge: "fastest",
     desc: "Fresh browser context triggers CF managed-mode evaluation — solves in 4–15s vs 11–18s with alternatives. Cookies are extracted and cached immediately after the first solve.",
   },
   {
@@ -24,6 +25,12 @@ const features = [
     title: "Captcha Suite",
     badge: "auto",
     desc: "Turnstile via shadow DOM click, reCAPTCHA v2 via Google's free audio STT, hCaptcha auto-pass, and GeeTest v4 slide via canvas gap detection. No external solver APIs. No cost per solve.",
+  },
+  {
+    icon: "⊕",
+    title: "Custom Headers",
+    badge: "exclusive",
+    desc: "Pass Authorization, Referer, Origin, or any header to the target. Forwarded through all four tiers — including CF challenge solving — via scoped route interception that never leaks to subresources or challenge endpoints.",
   },
   {
     icon: "◎",
@@ -44,11 +51,6 @@ const features = [
     icon: "⟳",
     title: "FlareSolverr Compatible",
     desc: "Implements the FlareSolverr v2 API exactly — including response shape, cookie format, and version string. Prowlarr, Jackett, Sonarr, and Radarr connect with a single URL change.",
-  },
-  {
-    icon: "⊕",
-    title: "Custom Headers",
-    desc: "Pass Authorization, Referer, Origin, or any header to the target. Forwarded through all four tiers — including CF challenge solving — via scoped route interception that never leaks to subresources or challenge endpoints.",
   },
 ]
 </script>
