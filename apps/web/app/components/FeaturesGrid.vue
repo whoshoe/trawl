@@ -45,6 +45,11 @@ const features = [
     title: "FlareSolverr Compatible",
     desc: "Implements the FlareSolverr v2 API exactly — including response shape, cookie format, and version string. Prowlarr, Jackett, Sonarr, and Radarr connect with a single URL change.",
   },
+  {
+    icon: "⊕",
+    title: "Custom Headers",
+    desc: "Pass Authorization, Referer, Origin, or any header to the target. Forwarded through all four tiers — including CF challenge solving — via scoped route interception that never leaks to subresources or challenge endpoints.",
+  },
 ]
 </script>
 
@@ -98,7 +103,7 @@ const features = [
 
 .features-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 1px;
   background: var(--border);
 }
@@ -171,7 +176,7 @@ const features = [
   color: var(--text-muted);
 }
 
-@media (max-width: 1000px) {
+@media (max-width: 900px) {
   .features-grid {
     grid-template-columns: repeat(2, 1fr);
   }

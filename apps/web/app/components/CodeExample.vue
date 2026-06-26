@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-type Tab = "curl" | "js" | "python" | "prowlarr"
+type Tab = "curl" | "js" | "python" | "prowlarr" | "headers"
 const active = shallowRef<Tab>("curl")
 
 const tabs: { id: Tab; label: string }[] = [
@@ -7,6 +7,7 @@ const tabs: { id: Tab; label: string }[] = [
   { id: "js", label: "javascript" },
   { id: "python", label: "python" },
   { id: "prowlarr", label: "prowlarr" },
+  { id: "headers", label: "custom headers" },
 ]
 
 const code: Record<Tab, string> = {
@@ -55,6 +56,29 @@ assert data[<span class="s">"status"</span>] == <span class="s">"ok"</span>
 
 html    = data[<span class="s">"solution"</span>][<span class="s">"response"</span>]
 cookies = data[<span class="s">"solution"</span>][<span class="s">"cookies"</span>]`,
+
+  headers: `<span class="c"># Pass any header — forwarded to the target across all tiers</span>
+curl -s -X POST http://localhost:8191/v1 \\
+  -H <span class="s">"Content-Type: application/json"</span> \\
+  -d <span class="s">'{
+    "url": "https://example.com/embed",
+    "headers": {
+      "Authorization": "Bearer my-token",
+      "Referer": "https://parent-site.com",
+      "Origin": "https://parent-site.com"
+    }
+  }'</span>
+
+<span class="c"># Native API — same headers field, richer response</span>
+curl -s -X POST http://localhost:8191/scrape \\
+  -H <span class="s">"Content-Type: application/json"</span> \\
+  -d <span class="s">'{
+    "url": "https://example.com/embed",
+    "headers": { "X-API-Key": "secret" }
+  }'</span>
+
+<span class="c"># Headers are scoped to the target URL only.</span>
+<span class="c"># CF challenge endpoints and subresources are never intercepted.</span>`,
 
   prowlarr: `<span class="c"># Prowlarr → Settings → Indexers → FlareSolverr</span>
 <span class="c"># Paste one of these into the FlareSolverr URL field:</span>
