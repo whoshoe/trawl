@@ -61,7 +61,7 @@ export interface PoolStats {
 }
 
 export interface FlareSolverrRequest {
-  cmd: "request.get" | "request.post"
+  cmd?: "request.get" | "request.post"
   url: string
   maxTimeout?: number
   postData?: string

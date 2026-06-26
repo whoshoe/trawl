@@ -83,12 +83,13 @@ new Elysia()
   .post("/v1", async ({ body, set }) => {
     const req = body as FlareSolverrRequest
     const startTimestamp = Date.now()
+    const cmd = req.cmd ?? "request.get"
 
-    if (req.cmd !== "request.get" && req.cmd !== "request.post") {
+    if (cmd !== "request.get" && cmd !== "request.post") {
       set.status = 400
       return {
         status: "error",
-        message: `Unknown cmd: ${req.cmd}`,
+        message: `Unknown cmd: ${cmd}`,
         startTimestamp,
         endTimestamp: Date.now(),
         version: "2.0.0",
