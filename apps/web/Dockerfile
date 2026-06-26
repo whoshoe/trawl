@@ -6,7 +6,7 @@ COPY apps/web/package.json ./
 RUN bun --bun install
 
 COPY apps/web/ ./
-RUN bun run build
+RUN bunx --bun nuxt generate
 
 FROM nginx:alpine AS runner
 
