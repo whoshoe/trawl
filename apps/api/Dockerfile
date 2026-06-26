@@ -26,7 +26,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     nodejs npm python3 make g++ \
     && rm -rf /var/lib/apt/lists/*
 
-RUN bun x camoufox-js fetch \
+# Secret mount keeps GITHUB_TOKEN out of image layers.
+# Token prevents GitHub API rate-limits that cause the binary download to stall.
+RUN --mount=type=secret,id=GITHUB_TOKEN,env=GITHUB_TOKEN \
+    bun x camoufox-js fetch \
     && rm -rf /opt/camoufox/fonts/macos /opt/camoufox/fonts/windows
 
 # ── Stage 3: lean runtime (only API-required files) ────────────────────────────
