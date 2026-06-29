@@ -96,14 +96,15 @@ Tier 4: Residential proxy ──── success ──→ cache + return (15–45
 
 ## Configuration
 
-| Variable                | Default                  | Description                                     |
-| ----------------------- | ------------------------ | ----------------------------------------------- |
-| `BROWSER_POOL_SIZE`     | `5`                      | Warm Camoufox Firefox instances                 |
-| `SESSION_TTL_SECONDS`   | `3600`                   | Redis session cache TTL (seconds)               |
-| `REDIS_URL`             | `redis://localhost:6379` | Redis connection string                         |
-| `RESIDENTIAL_PROXY_URL` | —                        | Enables Tier 4 proxy escalation                 |
-| `STT_URL`               | —                        | Local Whisper endpoint for reCAPTCHA (optional) |
-| `PORT_API`              | `8191`                   | API listen port                                 |
+| Variable                     | Default                  | Description                                                              |
+| ---------------------------- | ------------------------ | ------------------------------------------------------------------------ |
+| `BROWSER_POOL_SIZE`          | `3`                      | Warm Camoufox Firefox instances                                          |
+| `BROWSER_ACQUIRE_TIMEOUT_MS` | `15000`                  | How long `acquire()` polls for a free browser before HTTP 429 is returned |
+| `SESSION_TTL_SECONDS`        | `3600`                   | Redis session cache TTL (seconds)                                        |
+| `REDIS_URL`                  | `redis://localhost:6379` | Redis connection string                                                  |
+| `RESIDENTIAL_PROXY_URL`      | —                        | Enables Tier 4 proxy escalation                                          |
+| `STT_URL`                    | —                        | Local Whisper endpoint for reCAPTCHA (optional)                          |
+| `PORT_API`                   | `8191`                   | API listen port                                                          |
 
 ## Stack
 
