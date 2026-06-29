@@ -1,7 +1,6 @@
 import { BrowserPool, SessionCache } from "@trawl/browser"
 import { scrape } from "@trawl/tiers"
 import type { FlareSolverrRequest, FlareSolverrResponse, PoolStats, ScrapeRequest } from "@trawl/types"
-import { cors } from "@elysiajs/cors"
 import { Elysia } from "elysia"
 
 const REDIS_URL = process.env.REDIS_URL ?? "redis://localhost:6379"
@@ -49,7 +48,6 @@ function getDeps() {
 const startTime = Date.now()
 
 new Elysia()
-  .use(cors())
   .get("/health", () => ({
     status: pool ? "ok" : "starting",
     uptime: Math.floor((Date.now() - startTime) / 1000),
