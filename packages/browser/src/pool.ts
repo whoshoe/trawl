@@ -28,10 +28,22 @@ interface PoolEntry extends PoolBrowser {
 export class BrowserPool {
   private entries: PoolEntry[] = []
   private poolSize: number
+  private acquireTimeoutMs: number
+  private pollIntervalMs: number
   private healthInterval: ReturnType<typeof setInterval> | null = null
 
-  constructor({ poolSize }: { poolSize: number }) {
+  constructor({
+    poolSize,
+    acquireTimeoutMs = 15_000,
+    pollIntervalMs = 100,
+  }: {
+    poolSize: number
+    acquireTimeoutMs?: number
+    pollIntervalMs?: number
+  }) {
     this.poolSize = poolSize
+    this.acquireTimeoutMs = acquireTimeoutMs
+    this.pollIntervalMs = pollIntervalMs
   }
 
   async init(): Promise<void> {
@@ -111,7 +123,7 @@ export class BrowserPool {
 
       if (tryAcquire()) return
 
-      const deadline = Date.now() + 5000
+      const deadline = Date.now() + this.acquireTimeoutMs
       const poll = setInterval(() => {
         if (tryAcquire()) {
           clearInterval(poll)
@@ -121,7 +133,7 @@ export class BrowserPool {
           clearInterval(poll)
           reject(new PoolExhaustedError())
         }
-      }, 100)
+      }, this.pollIntervalMs)
     })
   }
 

@@ -6,6 +6,10 @@ import { Elysia } from "elysia"
 const REDIS_URL = process.env.REDIS_URL ?? "redis://localhost:6379"
 const PORT = Number(process.env.PORT_API ?? "8191")
 const POOL_SIZE = Number(process.env.BROWSER_POOL_SIZE ?? "3")
+// How long acquire() will poll for a free browser before rejecting with PoolExhaustedError.
+// 15s covers a full CF challenge burst with pool=3 (queue depth 7, slowest finishes at ~12s).
+// Tune lower for fast-fail feedback in dev; tune higher for very heavy upstream targets.
+const ACQUIRE_TIMEOUT_MS = Number(process.env.BROWSER_ACQUIRE_TIMEOUT_MS ?? "15000")
 const SESSION_TTL = Number(process.env.SESSION_TTL_SECONDS ?? "3600")
 
 // Single embedded pool — no BullMQ / worker process required.
@@ -25,7 +29,7 @@ async function initPool() {
     console.warn("[api] session cache unavailable — Tier 2 disabled:", err instanceof Error ? err.message : err)
   }
 
-  pool = new BrowserPool({ poolSize: POOL_SIZE })
+  pool = new BrowserPool({ poolSize: POOL_SIZE, acquireTimeoutMs: ACQUIRE_TIMEOUT_MS })
   await pool.init()
   pool.startHealthCheck()
   console.log(`[api] ready — all ${POOL_SIZE} browser${POOL_SIZE === 1 ? "" : "s"} warm`)
