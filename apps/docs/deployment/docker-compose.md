@@ -72,6 +72,7 @@ First run builds the web and docs images locally — takes a couple of minutes. 
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `BROWSER_POOL_SIZE` | `3` | Warm browser instances |
+| `BROWSER_ACQUIRE_TIMEOUT_MS` | `15000` | How long `acquire()` polls for a free browser before returning HTTP 429 |
 | `REDIS_URL` | `redis://redis:6379` | Redis connection (set automatically in compose) |
 | `RESIDENTIAL_PROXY_URL` | — | Enables Tier 4 proxy escalation |
 

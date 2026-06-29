@@ -129,12 +129,23 @@ curl -s -X POST http://localhost:8191/v1 \
 
 ## Error response
 
+When the request fails, the response is still a FlareSolverr v2 envelope with `status: "error"` and an empty `solution`. The HTTP status code carries the failure class:
+
+| Code | Meaning |
+|------|---------|
+| 200 | `status: "ok"` (request succeeded) |
+| 400 | Malformed request body |
+| 429 | Pool exhausted — all browsers busy past `BROWSER_ACQUIRE_TIMEOUT_MS` |
+| 500 | Internal error |
+
+Example — pool exhausted (HTTP 429):
+
 ```json
 {
   "status": "error",
-  "message": "timeout",
+  "message": "Browser pool saturated, retry shortly",
   "startTimestamp": 1700000000000,
-  "endTimestamp": 1700000060000,
+  "endTimestamp": 1700000015000,
   "version": "2.0.0",
   "solution": {
     "url": "https://nowsecure.nl",

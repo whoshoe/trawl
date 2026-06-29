@@ -53,7 +53,7 @@ Reads `session:{hostname}` from Redis. If found, injects the saved cookies into 
 
 ## Tier 3 — Fresh Cloudflare Challenge Solve
 
-Acquires a browser from the pool (or waits up to 5s for one to become available). Navigates to the URL with no pre-loaded cookies. Waits for the Cloudflare challenge to resolve by polling `page.content()` every 500ms until the interstitial HTML is gone or `maxTimeout` elapses.
+Acquires a browser from the pool (or waits up to `BROWSER_ACQUIRE_TIMEOUT_MS` — default 15s — for one to become available). Navigates to the URL with no pre-loaded cookies. Waits for the Cloudflare challenge to resolve by polling `page.content()` every 500ms until the interstitial HTML is gone or `maxTimeout` elapses.
 
 On success:
 - Extracts all cookies from the page context

@@ -61,7 +61,7 @@ const tabs: { id: Tab; label: string; hint: string }[] = [
 
           <div v-else-if="active === 'minimal'" class="snippet-body-wrap">
             <div class="snippet-bar inner-bar">
-              <span class="snippet-hint">single service · pool size 1 · no redis</span>
+              <span class="snippet-hint">single service · pool size 1 · 15s acquire wait · no redis</span>
             </div>
             <pre class="snippet-body"><code><span class="k">services:</span>
   trawl:
@@ -69,7 +69,8 @@ const tabs: { id: Tab; label: string; hint: string }[] = [
     <span class="k">ports:</span> [<span class="s">"8191:8191"</span>]
     <span class="k">shm_size:</span> <span class="s">1gb</span>
     <span class="k">environment:</span>
-      <span class="k">BROWSER_POOL_SIZE:</span> <span class="s">1</span></code></pre>
+      <span class="k">BROWSER_POOL_SIZE:</span> <span class="s">1</span>
+      <span class="k">BROWSER_ACQUIRE_TIMEOUT_MS:</span> <span class="s">15000</span></code></pre>
           </div>
 
           <div v-else-if="active === 'cached'" class="snippet-body-wrap">
@@ -87,6 +88,7 @@ const tabs: { id: Tab; label: string; hint: string }[] = [
     <span class="k">environment:</span>
       <span class="k">REDIS_URL:</span> <span class="s">redis://redis:6379</span>
       <span class="k">BROWSER_POOL_SIZE:</span> <span class="s">3</span>
+      <span class="k">BROWSER_ACQUIRE_TIMEOUT_MS:</span> <span class="s">15000</span>
     <span class="k">depends_on:</span> [<span class="s">redis</span>]
 <span class="k">volumes:</span>
   redis_data:</code></pre>
@@ -110,6 +112,7 @@ const tabs: { id: Tab; label: string; hint: string }[] = [
     <span class="k">environment:</span>
       <span class="k">REDIS_URL:</span> <span class="s">redis://redis:6379</span>
       <span class="k">BROWSER_POOL_SIZE:</span> <span class="s">5</span>
+      <span class="k">BROWSER_ACQUIRE_TIMEOUT_MS:</span> <span class="s">15000</span>
     <span class="k">depends_on:</span> [<span class="s">redis</span>]
     <span class="k">healthcheck:</span>
       <span class="k">test:</span> <span class="s">wget -qO- http://localhost:8191/health</span>

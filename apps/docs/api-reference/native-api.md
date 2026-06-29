@@ -116,3 +116,37 @@ for (const t of result.timings) {
   "totalMs": 600
 }
 ```
+
+## Error response
+
+HTTP status codes:
+
+| Code | Meaning |
+|------|---------|
+| 200 | `tier` succeeded |
+| 400 | Malformed request body |
+| 429 | Pool exhausted — all browsers busy past `BROWSER_ACQUIRE_TIMEOUT_MS` |
+| 503 | Browser pool initializing |
+| 500 | Internal error |
+
+For 429 pool-exhaustion errors, the body is a **FlareSolverr v2 envelope** (same shape `/v1` uses) so clients can parse both endpoints uniformly:
+
+```json
+{
+  "status": "error",
+  "message": "Browser pool saturated, retry shortly",
+  "startTimestamp": 1700000000000,
+  "endTimestamp": 1700000015000,
+  "version": "2.0.0",
+  "solution": {
+    "url": "https://nowsecure.nl",
+    "status": 0,
+    "headers": {},
+    "response": "",
+    "cookies": [],
+    "userAgent": ""
+  }
+}
+```
+
+For 400 / 503 / 500 the body is the native shape `{ "error": "Human-readable message" }`.

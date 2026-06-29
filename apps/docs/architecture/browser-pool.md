@@ -30,10 +30,22 @@ Each entry is a `{ browser, context }` pair. `Camoufox({...})` creates the brows
 
 1. Look for an idle browser whose `lastDomain === domain` — reuse it (its context may already have warm CF cookies)
 2. Fall back to any idle browser
-3. If all browsers are busy, poll every 100ms for up to 5 seconds
-4. Throw `PoolExhaustedError` after 5 seconds with no idle browser
+3. If all browsers are busy, poll every `pollIntervalMs` (default **100ms**) for up to `acquireTimeoutMs` (default **15000ms** = 15s)
+4. Throw `PoolExhaustedError` after `acquireTimeoutMs` with no idle browser
 
 The domain match is on the **hostname only** — `https://example.com/page1` and `https://example.com/page2` both match `example.com`.
+
+Both thresholds are configurable via the `BrowserPool` constructor:
+
+```typescript
+new BrowserPool({
+  poolSize: 3,                // BROWSER_POOL_SIZE (default 3)
+  acquireTimeoutMs: 15000,    // BROWSER_ACQUIRE_TIMEOUT_MS — 15s default
+  pollIntervalMs: 100,        // how often to re-check for an idle browser
+})
+```
+
+When `acquireTimeoutMs` elapses, the API surfaces the rejection as **HTTP 429** with a FlareSolverr v2 error envelope — both on `/v1` (Prowlarr/Jackett) and on `/scrape` (native). See the [API reference](/api-reference/overview#error-responses).
 
 ## Release
 
@@ -71,7 +83,7 @@ const browser = await Camoufox({
 
 ## Memory usage
 
-Each Camoufox instance uses ~350–500 MB. With the default pool of 5:
+Each Camoufox instance uses ~350–500 MB. With the default pool of 3:
 
 | Pool size | RAM usage (browser only) |
 |-----------|--------------------------|

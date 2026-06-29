@@ -25,9 +25,21 @@ description: Common issues and how to fix them.
 2. **`SESSION_TTL_SECONDS` set too low** — If it's shorter than Cloudflare's challenge interval, the cache expires before the next request.
 3. **Domain key mismatch** — The key is the hostname only. `sub.example.com` and `www.example.com` are separate sessions.
 
+## POST /v1 returns HTTP 429 with `status: "error"`
+
+**Symptom:** Request returns **HTTP 429** (not 500) with a FlareSolverr v2 envelope and `message: "Browser pool saturated, retry shortly"`.
+
+**Cause:** TRAWL polled for `BROWSER_ACQUIRE_TIMEOUT_MS` (default 15s) without finding an idle browser. With `BROWSER_POOL_SIZE=3` and 10 concurrent requests, this only fires under sustained burst pressure.
+
+**Fixes (in order of preference):**
+
+1. **Raise `BROWSER_ACQUIRE_TIMEOUT_MS`** if your upstream target legitimately takes >5s per scrape — bumps the queue wait before 429 fires.
+2. **Raise `BROWSER_POOL_SIZE`** if you're consistently saturating — each browser uses ~350–500 MB RAM.
+3. **Reduce incoming request rate** if you control the client (Prowlarr's indexer interval, etc.).
+
 ## POST /v1 returns `status: "error"` with message `"timeout"`
 
-**Symptom:** `maxTimeout` exceeded.
+**Symptom:** `maxTimeout` exceeded (per-request timeout set by the client).
 
 **Causes:**
 

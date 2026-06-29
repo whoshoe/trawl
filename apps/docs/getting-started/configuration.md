@@ -47,6 +47,22 @@ BROWSER_POOL_SIZE=8   # high-throughput (6+ GB host RAM)
 
 > **Note:** The API container sets `shm_size: 1gb` by default. If you raise `BROWSER_POOL_SIZE` above 5, also raise `shm_size` in your `docker-compose.yml` to at least `2gb`.
 
+### `BROWSER_ACQUIRE_TIMEOUT_MS`
+
+**Default:** `15000` (15 seconds)
+
+How long `BrowserPool.acquire()` will poll for a free browser before rejecting with `PoolExhaustedError`. With `BROWSER_POOL_SIZE=3` and a typical Cloudflare challenge taking 5–8s per request, the 15s default lets a full burst of 10 concurrent requests drain without any 429s.
+
+Lower it for fail-fast client feedback (Prowlarr will see 429s sooner and retry on its own). Raise it for very heavy upstream targets or when you've bumped `BROWSER_POOL_SIZE` higher.
+
+```ini
+BROWSER_ACQUIRE_TIMEOUT_MS=5000    # fail fast — 429s after 5s
+BROWSER_ACQUIRE_TIMEOUT_MS=15000   # default — absorbs a full burst on pool=3
+BROWSER_ACQUIRE_TIMEOUT_MS=30000   # tolerate longer queueing on slow targets
+```
+
+When the timeout fires, both `/v1` and `/scrape` return **HTTP 429** with the FlareSolverr v2 error envelope (not a 500).
+
 ## Session Cache
 
 ### `SESSION_TTL_SECONDS`
@@ -109,7 +125,8 @@ Port the Nuxt landing page listens on.
 REDIS_URL=redis://localhost:6379
 
 # ── Browser pool ──────────────────────────────
-BROWSER_POOL_SIZE=5
+BROWSER_POOL_SIZE=3
+BROWSER_ACQUIRE_TIMEOUT_MS=15000
 SESSION_TTL_SECONDS=3600
 
 # ── Proxies (optional) ────────────────────────
