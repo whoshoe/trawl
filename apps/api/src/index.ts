@@ -5,7 +5,7 @@ import { Elysia } from "elysia"
 
 const REDIS_URL = process.env.REDIS_URL ?? "redis://localhost:6379"
 const PORT = Number(process.env.PORT_API ?? "8191")
-const POOL_SIZE = Number(process.env.BROWSER_POOL_SIZE ?? "2")
+const POOL_SIZE = Number(process.env.BROWSER_POOL_SIZE ?? "3")
 const SESSION_TTL = Number(process.env.SESSION_TTL_SECONDS ?? "3600")
 
 // Single embedded pool — no BullMQ / worker process required.
@@ -57,7 +57,14 @@ function flareSolverrError(url: string, message: string): FlareSolverrResponse {
     startTimestamp: now,
     endTimestamp: now,
     version: "2.0.0",
-    solution: { url, status: 0, headers: {}, response: "", cookies: [], userAgent: "" },
+    solution: {
+      url,
+      status: 0,
+      headers: {},
+      response: "",
+      cookies: [],
+      userAgent: "",
+    },
   }
 }
 
@@ -111,7 +118,11 @@ new Elysia()
 
     try {
       const result = await scrape(
-        { url: req.url, maxTimeout: req.maxTimeout ?? 60_000, headers: req.headers },
+        {
+          url: req.url,
+          maxTimeout: req.maxTimeout ?? 60_000,
+          headers: req.headers,
+        },
         getDeps(),
       )
       return {
