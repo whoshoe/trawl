@@ -110,7 +110,10 @@ new Elysia()
     }
 
     try {
-      const result = await scrape({ url: req.url, maxTimeout: req.maxTimeout ?? 60_000, headers: req.headers }, getDeps())
+      const result = await scrape(
+        { url: req.url, maxTimeout: req.maxTimeout ?? 60_000, headers: req.headers },
+        getDeps(),
+      )
       return {
         status: "ok",
         message: "",

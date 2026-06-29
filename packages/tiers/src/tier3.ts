@@ -34,8 +34,10 @@ export async function runTier3(
 
   try {
     if (extraHeaders && Object.keys(extraHeaders).length > 0) {
-      await page.route(url, (route: { request(): { headers(): Record<string, string> }; continue(o: object): Promise<void> }) =>
-        route.continue({ headers: { ...route.request().headers(), ...extraHeaders } }),
+      await page.route(
+        url,
+        (route: { request(): { headers(): Record<string, string> }; continue(o: object): Promise<void> }) =>
+          route.continue({ headers: { ...route.request().headers(), ...extraHeaders } }),
       )
     }
 

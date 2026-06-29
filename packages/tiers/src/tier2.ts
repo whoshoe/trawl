@@ -42,8 +42,10 @@ export async function runTier2(
     await page.setExtraHTTPHeaders({ "User-Agent": session.userAgent })
 
     if (extraHeaders && Object.keys(extraHeaders).length > 0) {
-      await page.route(url, (route: { request(): { headers(): Record<string, string> }; continue(o: object): Promise<void> }) =>
-        route.continue({ headers: { ...route.request().headers(), ...extraHeaders } }),
+      await page.route(
+        url,
+        (route: { request(): { headers(): Record<string, string> }; continue(o: object): Promise<void> }) =>
+          route.continue({ headers: { ...route.request().headers(), ...extraHeaders } }),
       )
     }
 
