@@ -11,7 +11,9 @@
     "@trawl/browser": "workspace:*",
     "@trawl/tiers": "workspace:*",
     "@trawl/types": "workspace:*",
-    "elysia": "^1.4.29"
+    "camoufox-js": "0.11.1",
+    "elysia": "^1.4.29",
+    "memoirist": "0.4.0"
   },
   "devDependencies": {
     "typescript": "^6.0.3",
