@@ -1,13 +1,21 @@
 name: Publish Baseline
 
-# Builds the `:baseline` tag of `ghcr.io/.../trawl` from
-# `apps/api/Dockerfile.baseline` (Bun baseline runtime — pre-2013-CPU
+# Builds the `:baseline` (or versioned `*-baseline`) tag of `ghcr.io/.../trawl`
+# from `apps/api/Dockerfile.baseline` (Bun baseline runtime — pre-2013-CPU
 # compatible). Same GHCR package as `:latest`, just a different tag.
-# Triggered manually, or automatically on `*-baseline` tags (e.g. `1.0.0-baseline`),
-# which produce the docker tag `germondai/trawl:1.0.0-baseline`.
+#
+# Triggers:
+#   - workflow_dispatch: run manually from any branch; pick a tag via the input
+#     (default: "baseline") e.g. "baseline", "1.0.0-baseline"
+#   - push of `*-baseline` tags (e.g. `1.0.0-baseline`) → docker tag mirrors git tag
 
 on:
   workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Docker tag to push (e.g. "baseline", "1.0.0-baseline")'
+        required: false
+        default: 'baseline'
   push:
     tags: ["*-baseline"]
 
@@ -38,45 +46,84 @@ jobs:
 
       - uses: docker/setup-buildx-action@v3
 
-      - name: Compute tags
-        id: tags
-        shell: bash
+      - name: Sanitize platform name
         run: |
-          if [[ "${{ github.event_name }}" == "push" ]]; then
-            # Tag push: docker tag mirrors git tag exactly.
-            # Pattern: git tag `1.0.0-baseline` → `germondai/trawl:1.0.0-baseline`
-            TAGS="${IMAGE}:${GITHUB_REF_NAME}"
-          else
-            # Manual dispatch: only update :baseline if on default branch
-            if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
-              TAGS="${IMAGE}:baseline"
-            else
-              TAGS=""
-            fi
-          fi
-          echo "tags=${TAGS}" >> "$GITHUB_OUTPUT"
+          platform=${{ matrix.platform }}
+          echo "PLATFORM_PAIR=${platform//\//-}" >> $GITHUB_ENV
 
-      - name: Build & push
-        if: steps.tags.outputs.tags != ''
-        uses: docker/build-push-action@v6
+      - uses: docker/build-push-action@v6
+        id: build
         with:
           context: .
           file: apps/api/Dockerfile.baseline
           platforms: ${{ matrix.platform }}
-          push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ steps.tags.outputs.tags }}
+          push: true
+          outputs: type=image,name=${{ env.IMAGE }},push-by-digest=true,name-canonical=true,push=true
           labels: |
-            org.opencontainers.image.title=trawl (baseline tag)
-            org.opencontainers.image.description=TRAWL API on Bun baseline runtime
+            org.opencontainers.image.title=trawl (baseline)
+            org.opencontainers.image.description=TRAWL API on Bun baseline runtime (pre-AVX2 compatible)
           cache-from: type=gha,scope=trawl-baseline-${{ matrix.platform }}
           cache-to: type=gha,scope=trawl-baseline-${{ matrix.platform }},mode=max
           secrets: |
             GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }}
 
-      # Safety: prevent the baseline workflow from ever stamping :latest.
-      # Builds tagged `:latest` are owned by publish.yml.
-      - name: Guard against :latest tag
-        if: startsWith(steps.tags.outputs.tags, 'ghcr.io/') && endsWith(steps.tags.outputs.tags, ':latest')
+      - name: Export digest
         run: |
-          echo "::error::Baseline workflow must not push :latest — aborting"
-          exit 1
+          mkdir -p /tmp/digests
+          digest="${{ steps.build.outputs.digest }}"
+          touch "/tmp/digests/${digest#sha256:}"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: digests-baseline-${{ env.PLATFORM_PAIR }}
+          path: /tmp/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  merge:
+    runs-on: ubuntu-latest
+    needs: build
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: /tmp/digests
+          pattern: digests-baseline-*
+          merge-multiple: true
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Compute tag
+        id: tags
+        shell: bash
+        run: |
+          if [[ "${{ github.event_name }}" == "push" ]]; then
+            TAG="${GITHUB_REF_NAME}"
+          else
+            TAG="${{ inputs.tag }}"
+          fi
+          # Safety: baseline workflow must never push :latest
+          if [[ "${TAG}" == "latest" ]]; then
+            echo "::error::Baseline workflow must not push :latest — use publish.yml instead"
+            exit 1
+          fi
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "full=${IMAGE}:${TAG}" >> "$GITHUB_OUTPUT"
+
+      - name: Create and push multi-arch manifest
+        working-directory: /tmp/digests
+        run: |
+          docker buildx imagetools create \
+            -t ${{ steps.tags.outputs.full }} \
+            $(printf '${{ env.IMAGE }}@sha256:%s ' *)
+
+      - name: Inspect manifest
+        run: docker buildx imagetools inspect ${{ steps.tags.outputs.full }}
