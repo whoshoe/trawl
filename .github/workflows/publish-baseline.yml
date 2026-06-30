@@ -1,0 +1,73 @@
+name: Publish Baseline
+
+# Builds `trawl-baseline:latest` from `apps/api/Dockerfile.baseline` (Bun
+# baseline runtime — pre-2013-CPU compatible). Triggered manually, or
+# automatically on `baseline-v*` tags which also stamp `:baseline-vX.Y.Z`.
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ["baseline-v*"]
+
+env:
+  IMAGE: ghcr.io/${{ github.repository_owner }}/trawl-baseline
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - platform: linux/amd64
+            runner: ubuntu-latest
+          - platform: linux/arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Compute tags
+        id: tags
+        shell: bash
+        run: |
+          if [[ "${{ github.event_name }}" == "push" ]]; then
+            # Tag push: publish the matching version tag + baseline-vX.Y.Z
+            VER="${GITHUB_REF_NAME#baseline-v}"
+            echo "version=${VER}" >> "$GITHUB_OUTPUT"
+            TAGS="${IMAGE}:baseline-v${VER}"
+          else
+            # Manual dispatch: only update :latest if on default branch
+            if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+              TAGS="${IMAGE}:latest"
+            else
+              TAGS=""
+            fi
+          fi
+          echo "tags=${TAGS}" >> "$GITHUB_OUTPUT"
+
+      - name: Build & push
+        if: steps.tags.outputs.tags != ''
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/api/Dockerfile.baseline
+          platforms: ${{ matrix.platform }}
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.tags.outputs.tags }}
+          labels: |
+            org.opencontainers.image.title=trawl-baseline
+            org.opencontainers.image.description=TRAWL API on Bun baseline runtime
+          cache-from: type=gha,scope=trawl-baseline-${{ matrix.platform }}
+          cache-to: type=gha,scope=trawl-baseline-${{ matrix.platform }},mode=max
+          secrets: |
+            GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }}
