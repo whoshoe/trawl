@@ -33,9 +33,6 @@ RUN --mount=type=secret,id=GITHUB_TOKEN,env=GITHUB_TOKEN \
 
 # Secret mount keeps GITHUB_TOKEN out of image layers.
 # Token prevents GitHub API rate-limits that cause the binary download to stall.
-RUN --mount=type=secret,id=GITHUB_TOKEN,env=GITHUB_TOKEN \
-    bun x camoufox-js fetch \
-    && rm -rf /opt/camoufox/fonts/macos /opt/camoufox/fonts/windows
 
 # ── Stage 3: lean runtime (only API-required files) ────────────────────────────
 FROM ubuntu:22.04
@@ -60,6 +57,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
       libasound2 \
       fonts-liberation \
       ca-certificates \
+      curl \
     && apt-get clean
 
 COPY --from=oven/bun:1.3.14  /usr/local/bin/bun /usr/local/bin/bun
