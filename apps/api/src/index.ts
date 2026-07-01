@@ -73,19 +73,22 @@ function flareSolverrError(url: string, message: string): FlareSolverrResponse {
 }
 
 new Elysia()
-  .get("/health", () => ({
-    status: pool ? "ok" : "starting",
-    uptime: Math.floor((Date.now() - startTime) / 1000),
-    pool:
-      pool?.getStats() ??
-      ({
-        total: 0,
-        busy: 0,
-        available: 0,
-        restarts: 0,
-        avgRestarts: 0,
-      } satisfies PoolStats),
-  }))
+  .get("/health", ({ set }) => {
+    if (!pool) set.status = 503
+    return {
+      status: pool ? "ok" : "starting",
+      uptime: Math.floor((Date.now() - startTime) / 1000),
+      pool:
+        pool?.getStats() ??
+        ({
+          total: 0,
+          busy: 0,
+          available: 0,
+          restarts: 0,
+          avgRestarts: 0,
+        } satisfies PoolStats),
+    }
+  })
 
   .get("/stats", () => {
     const stats = pool?.getStats() ?? {
