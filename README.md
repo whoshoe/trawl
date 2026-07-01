@@ -94,6 +94,25 @@ Tier 4: Residential proxy ──── success ──→ cache + return (15–45
 | `docker-compose.prod.yml`    | Production: `restart: always`, memory limit, healthcheck |
 | `docker-compose.full.yml`    | Full stack: scraper + web + docs                         |
 
+## Docker images (one GHCR package, two tags)
+
+| Image tag                              | Built from                      | Runtime                          | Use case |
+|----------------------------------------|--------------------------------|----------------------------------|----------|
+| `ghcr.io/germondai/trawl:latest`       | `apps/api/Dockerfile`           | Bun 1.3.14 (modern, AVX2)        | Default — modern Linux amd64/arm64 |
+| `ghcr.io/germondai/trawl:baseline`     | `apps/api/Dockerfile.baseline`  | Bun 1.3.14 baseline (no AVX2)     | Older CPUs / older kernels (Synology NAS, J4125, Atom-era) |
+
+Both tags live on the same `ghcr.io/germondai/trawl` package — they share the registry but use different Dockerfile sources. Pick whichever tag fits your hardware:
+
+```yaml
+# Modern hardware (most users)
+image: ghcr.io/germondai/trawl:latest
+
+# Older CPUs without AVX2 / Synology / older kernels
+image: ghcr.io/germondai/trawl:baseline
+```
+
+Synology note: many Synology NAS units (DSM 7.x on J4125 / older hardware) ship kernel 4.4.x, which Bun's modern runtime can't fully handle. The `:baseline` tag is published for that case — confirm-working status on the reporter's actual hardware (DS920+, kernel 4.4.302) is pending verification. Published by independent GitHub Actions workflows (`.github/workflows/publish.yml`, `publish-baseline.yml`); tag-triggered releases push matching git tags (e.g. `v1.0.0` → `1.0.0`, `1.0.0-baseline` → `1.0.0-baseline`) and manual `workflow_dispatch` from `main` updates the rolling tag (`latest` and `baseline` respectively).
+
 ## Configuration
 
 | Variable                     | Default                  | Description                                                              |
