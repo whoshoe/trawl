@@ -16,7 +16,11 @@ COPY apps/web/package.json         ./apps/web/
 COPY apps/docs/package.json        ./apps/docs/
 
 # --production skips devDependencies (vitepress + algolia from docs, typescript, @types)
-RUN bun install --frozen-lockfile --production
+# --linker=hoisted avoids Bun's default isolated-linker bugs that corrupt
+# multi-stage Docker builds: transitive deps not symlinked (oven-sh/bun#23524,
+# e.g. @sinclair/typebox via elysia) and a store-population race producing
+# EISDIR on freshly-linked packages (oven-sh/bun#29489, e.g. camoufox-js).
+RUN bun install --frozen-lockfile --production --linker=hoisted
 
 # ── Stage 2: fetch the Camoufox Firefox binary ─────────
 FROM oven/bun:1.3.14 AS camoufox
@@ -71,12 +75,6 @@ COPY packages/browser/ /app/packages/browser/
 COPY packages/tiers/   /app/packages/tiers/
 COPY apps/api/         /app/apps/api/
 COPY package.json      /app/
-
-# Workspace node_modules (relative symlinks into root .bun/ tree — must come after source COPY)
-# packages/types has no production deps so no node_modules dir is created
-COPY --from=deps /app/apps/api/node_modules          /app/apps/api/node_modules
-COPY --from=deps /app/packages/browser/node_modules  /app/packages/browser/node_modules
-COPY --from=deps /app/packages/tiers/node_modules    /app/packages/tiers/node_modules
 
 ENV CAMOUFOX_INSTALL_DIR=/opt/camoufox
 WORKDIR /app
