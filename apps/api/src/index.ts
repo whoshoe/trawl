@@ -129,6 +129,8 @@ new Elysia()
           url: req.url,
           maxTimeout: req.maxTimeout ?? 60_000,
           headers: req.headers,
+          method: cmd === "request.post" ? "POST" : "GET",
+          postData: req.postData,
         },
         getDeps(),
       )

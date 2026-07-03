@@ -16,6 +16,8 @@ export interface ScrapeRequest {
   maxTier?: 1 | 2 | 3 | 4
   sessionId?: string
   headers?: Record<string, string>
+  method?: string
+  postData?: string
 }
 
 export interface TierResult {

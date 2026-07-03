@@ -40,7 +40,7 @@ export async function scrape(req: ScrapeRequest, deps: OrchestratorDeps): Promis
 
   // Tier 1: plain HTTP fetch
   if (!req.skipHttp && maxTier >= 1) {
-    const t1 = await runTier1(req.url, req.headers)
+    const t1 = await runTier1(req.url, req.headers, req.method, req.postData)
     emit(t1)
     if (t1.status === "success" && t1.html !== undefined) {
       return {
@@ -69,7 +69,7 @@ export async function scrape(req: ScrapeRequest, deps: OrchestratorDeps): Promis
     const session = await deps.loadSession(domain)
     if (session && maxTier >= 2) {
       const remaining = maxTimeout - (Date.now() - totalStart)
-      const t2 = await runTier2(req.url, handle, session, remaining, req.headers)
+      const t2 = await runTier2(req.url, handle, session, remaining, req.headers, req.method, req.postData)
       emit(t2)
       if (t2.status === "success" && t2.html !== undefined) {
         if (t2.cookies && t2.cookies.length > 0) {
@@ -102,7 +102,7 @@ export async function scrape(req: ScrapeRequest, deps: OrchestratorDeps): Promis
 
     // Tier 3: fresh challenge solve
     const remaining3 = maxTimeout - (Date.now() - totalStart)
-    const t3 = await runTier3(req.url, handle, remaining3, deps.proxyUrl, req.headers)
+    const t3 = await runTier3(req.url, handle, remaining3, deps.proxyUrl, req.headers, req.method, req.postData)
     emit(t3)
     if (t3.status === "success" && t3.html !== undefined) {
       const cookies: Cookie[] = t3.cookies ?? []
@@ -141,7 +141,7 @@ export async function scrape(req: ScrapeRequest, deps: OrchestratorDeps): Promis
     console.log(`[orchestrator] Tier 4 via residential proxy: ${proxyUrl.replace(/\/\/[^@]*@/, "//**@")}`)
 
     const remaining4 = maxTimeout - (Date.now() - totalStart)
-    const t4 = await runTier4(req.url, handle, remaining4, proxyUrl, req.headers)
+    const t4 = await runTier4(req.url, handle, remaining4, proxyUrl, req.headers, req.method, req.postData)
     emit(t4)
     if (t4.status === "success" && t4.html !== undefined) {
       const cookies: Cookie[] = t4.cookies ?? []
