@@ -19,7 +19,7 @@ export async function runTier3(
   url: string,
   handle: BrowserHandle,
   maxTimeout: number,
-  _proxyUrl?: string,
+  proxyUrl?: string,
   extraHeaders?: Record<string, string>,
 ): Promise<Tier3Result> {
   const start = Date.now()
@@ -29,7 +29,7 @@ export async function runTier3(
   // engine state) that CF's behavioral analysis scores as suspicious — resulting in 40s
   // challenge evaluation. A fresh context with no prior state gets managed-mode treatment:
   // CF evaluates in under 1s and the challenge resolves in 3-4s total.
-  const freshCtx = await newFreshContext(handle.browser)
+  const freshCtx = await newFreshContext(handle.browser, { proxy: proxyUrl })
   const page = await freshCtx.newPage()
 
   try {
@@ -65,7 +65,9 @@ export async function runTier3(
     if (gotoErr instanceof Error) {
       const msg = gotoErr.message
       const isHardFail =
-        /ERR_NAME_NOT_RESOLVED|ERR_CONNECTION_REFUSED|ERR_CONNECTION_TIMED_OUT|ERR_TUNNEL_CONNECTION_FAILED/i.test(msg)
+        /ERR_NAME_NOT_RESOLVED|ERR_CONNECTION_REFUSED|ERR_CONNECTION_TIMED_OUT|ERR_TUNNEL_CONNECTION_FAILED|ERR_PROXY_CONNECTION_FAILED/i.test(
+          msg,
+        )
       if (isHardFail) {
         return { tier: 3, status: "error", durationMs: Date.now() - start, reason: msg.split("\n")[0] }
       }
