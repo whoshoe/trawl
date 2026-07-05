@@ -9,10 +9,17 @@ export interface Tier1Result extends TierResult {
   statusCode?: number
 }
 
-export async function runTier1(url: string, extraHeaders?: Record<string, string>): Promise<Tier1Result> {
+export async function runTier1(
+  url: string,
+  extraHeaders?: Record<string, string>,
+  method?: string,
+  body?: string,
+): Promise<Tier1Result> {
   const start = Date.now()
   try {
     const res = await fetch(url, {
+      method: method ?? "GET",
+      body: method === "POST" ? body : undefined,
       headers: {
         "User-Agent": FINGERPRINT.userAgent,
         Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",

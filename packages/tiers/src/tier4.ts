@@ -4,6 +4,8 @@ import type { Cookie, TierResult } from "@trawl/types"
 import { waitForChallengeResolution } from "./challengeWait"
 import { detectChallengeType, hasImpervaChallenge, isCloudflarePage } from "./detect"
 import { normalizeHtml } from "./html"
+import type { RouteLike } from "./sanitize"
+import { routeContinueOverrides } from "./sanitize"
 import { waitForImpervaResolution } from "./impervaWait"
 
 export interface Tier4Result extends TierResult {
@@ -20,6 +22,8 @@ export async function runTier4(
   maxTimeout: number,
   proxyUrl: string,
   extraHeaders?: Record<string, string>,
+  method?: string,
+  body?: string,
 ): Promise<Tier4Result> {
   const start = Date.now()
 
@@ -56,12 +60,10 @@ export async function runTier4(
 
     const page = await proxyContext.newPage()
 
-    if (extraHeaders && Object.keys(extraHeaders).length > 0) {
-      await page.route(
-        url,
-        (route: { request(): { headers(): Record<string, string> }; continue(o: object): Promise<void> }) =>
-          route.continue({ headers: { ...route.request().headers(), ...extraHeaders } }),
-      )
+    if ((extraHeaders && Object.keys(extraHeaders).length > 0) || method === "POST") {
+      await page.route(url, (route: RouteLike) => {
+        route.continue(routeContinueOverrides(route, extraHeaders, method, body))
+      })
     }
 
     let statusCode = 200

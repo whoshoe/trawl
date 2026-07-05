@@ -16,6 +16,11 @@ export interface ScrapeRequest {
   maxTier?: 1 | 2 | 3 | 4
   sessionId?: string
   headers?: Record<string, string>
+  // CONNECT is intentionally excluded — it's a tunneling verb, not a normal
+  // request body, and would let a caller establish arbitrary TCP tunnels.
+  // QUERY (RFC 9341) is included — safe verb, body carries the query params.
+  method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE" | "HEAD" | "OPTIONS" | "TRACE" | "QUERY"
+  body?: string
   // Per-request proxy override — bypasses the server-configured proxy pool for this call.
   proxy?: string
 }

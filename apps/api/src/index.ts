@@ -1,5 +1,13 @@
 import { BrowserPool, PoolExhaustedError, SessionCache } from "@trawl/browser"
-import { ProxyPool, scrape } from "@trawl/tiers"
+import {
+  isValidMethod,
+  RequestValidationError,
+  requireContentTypeForBody,
+  SUPPORTED_METHODS,
+  type SupportedMethod,
+  sanitizeHeaders,
+  scrape,
+} from "@trawl/tiers"
 import type { FlareSolverrRequest, FlareSolverrResponse, PoolStats, ScrapeRequest } from "@trawl/types"
 import { Elysia } from "elysia"
 
@@ -60,6 +68,29 @@ function getDeps() {
     proxyPool,
     residentialProxyPool,
   }
+}
+
+function buildScrapeRequestFromFlareSolverr(req: FlareSolverrRequest): ScrapeRequest {
+  const method: SupportedMethod = req.cmd === "request.post" ? "POST" : "GET"
+  const headers = sanitizeHeaders(req.headers)
+  requireContentTypeForBody(headers, Boolean(req.postData))
+  return {
+    url: req.url,
+    maxTimeout: req.maxTimeout ?? 60_000,
+    headers,
+    method,
+    body: req.postData,
+  }
+}
+
+function validateScrapeRequest(req: ScrapeRequest): void {
+  if (!isValidMethod(req.method)) {
+    throw new RequestValidationError(
+      `Unsupported method: ${String(req.method)} (allowed: ${SUPPORTED_METHODS.join(", ")})`,
+      400,
+    )
+  }
+  requireContentTypeForBody(sanitizeHeaders(req.headers), Boolean(req.body))
 }
 
 const startTime = Date.now()
@@ -137,15 +168,8 @@ new Elysia()
     }
 
     try {
-      const result = await scrape(
-        {
-          url: req.url,
-          maxTimeout: req.maxTimeout ?? 60_000,
-          headers: req.headers,
-          proxy: req.proxy,
-        },
-        getDeps(),
-      )
+      const scrapeRequest = buildScrapeRequestFromFlareSolverr(req)
+      const result = await scrape(scrapeRequest, getDeps())
       return {
         status: "ok",
         message: "",
@@ -162,6 +186,10 @@ new Elysia()
         },
       } satisfies FlareSolverrResponse
     } catch (err) {
+      if (err instanceof RequestValidationError) {
+        set.status = err.statusCode
+        return flareSolverrError(req.url, err.message)
+      }
       set.status = err instanceof PoolExhaustedError ? 429 : 500
       return flareSolverrError(req.url, err instanceof Error ? err.message : String(err))
     }
@@ -179,8 +207,13 @@ new Elysia()
     }
     const req = body as ScrapeRequest
     try {
-      return await scrape(req, getDeps())
+      validateScrapeRequest(req)
+      return await scrape({ ...req, headers: sanitizeHeaders(req.headers) }, getDeps())
     } catch (err) {
+      if (err instanceof RequestValidationError) {
+        set.status = err.statusCode
+        return { error: err.message }
+      }
       if (err instanceof PoolExhaustedError) {
         set.status = 429
         return flareSolverrError(req.url ?? "", "Browser pool saturated, retry shortly")

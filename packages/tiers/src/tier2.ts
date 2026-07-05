@@ -2,6 +2,8 @@ import type { BrowserHandle } from "@trawl/browser"
 import type { Cookie, SessionData, TierResult } from "@trawl/types"
 import { isCloudflarePage } from "./detect"
 import { normalizeHtml } from "./html"
+import type { RouteLike } from "./sanitize"
+import { routeContinueOverrides } from "./sanitize"
 import { solvePageCaptchas } from "./solvers"
 
 export interface Tier2Result extends TierResult {
@@ -18,6 +20,8 @@ export async function runTier2(
   session: SessionData,
   maxTimeout: number,
   extraHeaders?: Record<string, string>,
+  method?: string,
+  body?: string,
 ): Promise<Tier2Result> {
   const start = Date.now()
   const page = await handle.context.newPage()
@@ -41,12 +45,10 @@ export async function runTier2(
 
     await page.setExtraHTTPHeaders({ "User-Agent": session.userAgent })
 
-    if (extraHeaders && Object.keys(extraHeaders).length > 0) {
-      await page.route(
-        url,
-        (route: { request(): { headers(): Record<string, string> }; continue(o: object): Promise<void> }) =>
-          route.continue({ headers: { ...route.request().headers(), ...extraHeaders } }),
-      )
+    if ((extraHeaders && Object.keys(extraHeaders).length > 0) || method === "POST") {
+      await page.route(url, (route: RouteLike) => {
+        route.continue(routeContinueOverrides(route, extraHeaders, method, body))
+      })
     }
 
     let statusCode = 200
