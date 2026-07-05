@@ -84,10 +84,11 @@ SESSION_TTL_SECONDS=1800   # more conservative
 
 **Default:** _(empty — no proxy)_
 
-Datacenter proxy used for Tier 3 (fresh challenge solve). Format: `protocol://user:pass@host:port`.
+Datacenter proxy pool used for Tier 3 (fresh challenge solve). Format: `protocol://user:pass@host:port`, or a **comma-separated list** for multiple proxies:
 
 ```ini
 PROXY_URL=http://user:pass@dc-proxy.example.com:8080
+PROXY_URL=http://user:pass@dc1.example.com:8080,http://user:pass@dc2.example.com:8080
 ```
 
 Leave empty to run Tier 3 without a proxy (your server's real IP is used).
@@ -96,11 +97,36 @@ Leave empty to run Tier 3 without a proxy (your server's real IP is used).
 
 **Default:** _(empty — Tier 4 disabled)_
 
-Residential proxy used for Tier 4 (when the datacenter IP is flagged). Same format as `PROXY_URL`. Tier 4 is completely skipped if this variable is not set.
+Residential proxy pool used for Tier 4 (when the datacenter IP is flagged). Same format as `PROXY_URL` — single URL or comma-separated list. Tier 4 is completely skipped if this variable is not set and no per-request `proxy` override is supplied.
 
 ```ini
 RESIDENTIAL_PROXY_URL=http://user:pass@residential.example.com:8080
 ```
+
+### `PROXY_LIST_FILE` / `RESIDENTIAL_PROXY_LIST_FILE`
+
+**Default:** _(empty)_
+
+Alternative to cramming a large proxy list into `PROXY_URL`/`RESIDENTIAL_PROXY_URL` — path to a file with one proxy URL per line (`#` comments allowed). Merged with the corresponding `*_URL` env var if both are set.
+
+```ini
+PROXY_LIST_FILE=/etc/trawl/datacenter-proxies.txt
+RESIDENTIAL_PROXY_LIST_FILE=/etc/trawl/residential-proxies.txt
+```
+
+### Rotation and failure handling
+
+When more than one proxy is configured, TRAWL picks proxies **sticky-per-domain** — repeat requests to the same hostname keep reusing the same proxy (helps avoid re-triggering challenges), while different domains spread round-robin across the pool. If a tier attempt comes back `"blocked"` using a pool-sourced proxy, that proxy is put in a 5-minute cooldown and the request retries once with the next available proxy before falling through (Tier 3 → Tier 4, or Tier 4 failing outright) — bounded to 2 attempts per tier so a long list can't blow the request's `maxTimeout`.
+
+### Per-request override
+
+Both `POST /scrape` and `POST /v1` accept an optional `proxy` field in the request body — when present, it's used directly for that request's Tier 3/4 attempts instead of the configured pool (and isn't retried against other pool proxies on failure, since it's caller-supplied):
+
+```json
+{ "url": "https://example.com", "proxy": "http://user:pass@my-proxy.example.com:8080" }
+```
+
+Note: `proxy` on `/v1` is a TRAWL-specific extension — it is not part of the real FlareSolverr v2 contract, so other FlareSolverr-compatible clients simply won't send it.
 
 ## Ports
 
@@ -129,9 +155,11 @@ BROWSER_POOL_SIZE=3
 BROWSER_ACQUIRE_TIMEOUT_MS=15000
 SESSION_TTL_SECONDS=3600
 
-# ── Proxies (optional) ────────────────────────
+# ── Proxies (optional, comma-separated lists) ─
 PROXY_URL=
 RESIDENTIAL_PROXY_URL=
+PROXY_LIST_FILE=
+RESIDENTIAL_PROXY_LIST_FILE=
 
 # ── Ports ─────────────────────────────────────
 PORT_API=8191

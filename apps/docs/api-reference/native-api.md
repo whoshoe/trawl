@@ -17,6 +17,7 @@ interface ScrapeRequest {
   maxTier?: 1 | 2 | 3 | 4              // cap escalation at this tier
   sessionId?: string                     // sticky session override key
   headers?: Record<string, string>       // custom headers forwarded to the target
+  proxy?: string                         // per-request proxy override for Tier 3/4
 }
 ```
 
@@ -30,6 +31,7 @@ interface ScrapeRequest {
 | `maxTier` | 1–4 | 4 | Never escalate beyond this tier |
 | `sessionId` | string | hostname | Override the Redis session key |
 | `headers` | object | — | Custom headers forwarded to the target across all tiers — see [Custom Headers](/api-reference/custom-headers) |
+| `proxy` | string | — | Proxy URL used for this request's Tier 3/4 attempts instead of the configured `PROXY_URL`/`RESIDENTIAL_PROXY_URL` pool — see [Configuration § Proxies](/getting-started/configuration#proxies) |
 
 ## Response
 
