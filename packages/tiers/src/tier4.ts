@@ -4,6 +4,8 @@ import type { Cookie, TierResult } from "@trawl/types"
 import { waitForChallengeResolution } from "./challengeWait"
 import { isCloudflarePage } from "./detect"
 import { normalizeHtml } from "./html"
+import type { RouteLike } from "./sanitize"
+import { routeContinueOverrides } from "./sanitize"
 
 export interface Tier4Result extends TierResult {
   tier: 4
@@ -20,7 +22,7 @@ export async function runTier4(
   proxyUrl: string,
   extraHeaders?: Record<string, string>,
   method?: string,
-  postData?: string,
+  body?: string,
 ): Promise<Tier4Result> {
   const start = Date.now()
 
@@ -58,25 +60,9 @@ export async function runTier4(
     const page = await proxyContext.newPage()
 
     if ((extraHeaders && Object.keys(extraHeaders).length > 0) || method === "POST") {
-      await page.route(
-        url,
-        (route: {
-          request(): { headers(): Record<string, string>; method(): string }
-          continue(o: object): Promise<void>
-        }) => {
-          const overrides: { method?: string; postData?: string; headers: Record<string, string> } = {
-            headers: { ...route.request().headers(), ...extraHeaders },
-          }
-          if (method === "POST" && route.request().method() === "GET") {
-            overrides.method = "POST"
-            overrides.postData = postData
-            if (!overrides.headers["content-type"] && !overrides.headers["Content-Type"]) {
-              overrides.headers["Content-Type"] = "application/x-www-form-urlencoded"
-            }
-          }
-          return route.continue(overrides)
-        },
-      )
+      await page.route(url, (route: RouteLike) => {
+        route.continue(routeContinueOverrides(route, extraHeaders, method, body))
+      })
     }
 
     let statusCode = 200

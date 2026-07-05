@@ -2,6 +2,8 @@ import type { BrowserHandle } from "@trawl/browser"
 import type { Cookie, SessionData, TierResult } from "@trawl/types"
 import { isCloudflarePage } from "./detect"
 import { normalizeHtml } from "./html"
+import type { RouteLike } from "./sanitize"
+import { routeContinueOverrides } from "./sanitize"
 import { solvePageCaptchas } from "./solvers"
 
 export interface Tier2Result extends TierResult {
@@ -19,7 +21,7 @@ export async function runTier2(
   maxTimeout: number,
   extraHeaders?: Record<string, string>,
   method?: string,
-  postData?: string,
+  body?: string,
 ): Promise<Tier2Result> {
   const start = Date.now()
   const page = await handle.context.newPage()
@@ -44,25 +46,9 @@ export async function runTier2(
     await page.setExtraHTTPHeaders({ "User-Agent": session.userAgent })
 
     if ((extraHeaders && Object.keys(extraHeaders).length > 0) || method === "POST") {
-      await page.route(
-        url,
-        (route: {
-          request(): { headers(): Record<string, string>; method(): string }
-          continue(o: object): Promise<void>
-        }) => {
-          const overrides: { method?: string; postData?: string; headers: Record<string, string> } = {
-            headers: { ...route.request().headers(), ...extraHeaders },
-          }
-          if (method === "POST" && route.request().method() === "GET") {
-            overrides.method = "POST"
-            overrides.postData = postData
-            if (!overrides.headers["content-type"] && !overrides.headers["Content-Type"]) {
-              overrides.headers["Content-Type"] = "application/x-www-form-urlencoded"
-            }
-          }
-          return route.continue(overrides)
-        },
-      )
+      await page.route(url, (route: RouteLike) => {
+        route.continue(routeContinueOverrides(route, extraHeaders, method, body))
+      })
     }
 
     let statusCode = 200
