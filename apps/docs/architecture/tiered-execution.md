@@ -62,6 +62,12 @@ On success:
 
 Uses [Camoufox](https://github.com/daijro/camoufox) — Firefox with fingerprint patching at the C++/Juggler level. CF's detection scripts cannot distinguish it from a real Firefox profile.
 
+### Imperva/Incapsula challenges
+
+Tier 3 and Tier 4 also detect and solve Imperva/Incapsula WAF challenges, not just Cloudflare. Imperva's `reese84` (current) / `___utmvc` (legacy) sensor cookies are produced by an obfuscated in-page JS challenge — same principle as Cloudflare's `cf_clearance`: a real browser executing real JS produces the cookie without needing to understand the obfuscation. TRAWL detects the challenge page (`packages/tiers/src/detect.ts`'s `hasImpervaChallenge`) and polls for the sensor cookie (`packages/tiers/src/impervaWait.ts`) instead of the Cloudflare-specific wait loop.
+
+**Caveat:** unlike Turnstile, Imperva's script sometimes layers in TLS/JA3 and behavioral checks beyond plain cookie generation, and its obfuscation changes periodically — success isn't guaranteed at the same rate as Cloudflare. Some Imperva deployments also show a visible interactive CAPTCHA widget (distinct from hCaptcha/reCAPTCHA) instead of the passive sensor-only path; that variant isn't solved yet.
+
 ## Tier 4 — Residential Proxy Escalation
 
 Same as Tier 3 but launches the browser with `RESIDENTIAL_PROXY_URL` set as the proxy. Only triggered when:

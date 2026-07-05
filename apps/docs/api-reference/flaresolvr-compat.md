@@ -18,6 +18,7 @@ interface FlareSolverrRequest {
   maxTimeout?: number   // milliseconds, default 60000
   postData?: string     // body for request.post
   headers?: Record<string, string>
+  proxy?: string         // TRAWL extension — not part of the real FlareSolverr contract
 }
 ```
 
@@ -30,6 +31,7 @@ interface FlareSolverrRequest {
 | `maxTimeout` | number | No | Max wait in ms (default 60000) |
 | `postData` | string | No | POST body (only for `request.post`). On TRAWL's native `/scrape` endpoint this field is named `body`; the `/v1` adapter maps `postData` → `body` internally so the FlareSolverr wire contract stays unchanged for existing callers. |
 | `headers` | object | No | Custom headers forwarded to the target across all tiers — see [Custom Headers](/api-reference/custom-headers) |
+| `proxy` | string | No | **TRAWL-specific extension** (not in the real FlareSolverr v2 contract) — per-request proxy override for Tier 3/4, see [Configuration § Proxies](/getting-started/configuration#proxies) |
 
 ## Response
 

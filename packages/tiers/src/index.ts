@@ -1,6 +1,7 @@
 export {
   detectChallengeType,
   hasHcaptcha,
+  hasImpervaChallenge,
   hasRecaptcha,
   hasTurnstile,
   isBlocked,
@@ -20,6 +21,7 @@ export {
   type SupportedMethod,
   sanitizeHeaders,
 } from "./sanitize"
+export { ProxyPool } from "./proxyRotator"
 export { solvePageCaptchas } from "./solvers"
 export { runTier1 } from "./tier1"
 export { runTier2 } from "./tier2"

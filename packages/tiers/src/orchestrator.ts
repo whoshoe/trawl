@@ -8,14 +8,18 @@ import { runTier2 } from "./tier2"
 import { runTier3 } from "./tier3"
 import { runTier4 } from "./tier4"
 
+// Bounds how many distinct proxies a single request will try per tier before giving up —
+// keeps a long proxy list from blowing the request's maxTimeout budget.
+const MAX_PROXY_ATTEMPTS = 2
+
 export interface OrchestratorDeps {
   acquireBrowser(domain: string): Promise<BrowserHandle>
   releaseBrowser(id: number): void
   loadSession(domain: string): Promise<SessionData | null>
   saveSession(domain: string, data: SessionData): Promise<void>
   invalidateSession(domain: string): Promise<void>
-  proxyUrl?: string
-  residentialProxyUrl?: string
+  proxyPool?: ProxyPool
+  residentialProxyPool?: ProxyPool
   onTierAttempt?: (result: TierResult) => void
 }
 
@@ -135,14 +139,14 @@ export async function scrape(req: ScrapeRequest, deps: OrchestratorDeps): Promis
       throw new Error("Max tier reached without success")
     }
 
-    // Tier 4: residential proxy escalation — requires RESIDENTIAL_PROXY_URL to be set.
-    const proxyUrl = deps.residentialProxyUrl
-    if (!proxyUrl) {
+    // Tier 4: residential proxy escalation — requires at least one residential proxy,
+    // supplied either per-request (req.proxy) or via the configured residential pool.
+    let proxy4 = req.proxy ?? deps.residentialProxyPool?.next(domain)
+    if (!proxy4) {
       throw new Error(
-        `Tier 3 failed (${t3.reason ?? t3.status}). Set RESIDENTIAL_PROXY_URL to enable Tier 4 proxy escalation.`,
+        `Tier 3 failed (${t3.reason ?? t3.status}). Set RESIDENTIAL_PROXY_URL (or pass a proxy per-request) to enable Tier 4 proxy escalation.`,
       )
     }
-    console.log(`[orchestrator] Tier 4 via residential proxy: ${proxyUrl.replace(/\/\/[^@]*@/, "//**@")}`)
 
     const remaining4 = maxTimeout - (Date.now() - totalStart)
     const t4 = await runTier4(req.url, handle, remaining4, proxyUrl, sanitizedHeaders, req.method, req.body)

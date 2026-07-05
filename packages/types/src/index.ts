@@ -21,6 +21,8 @@ export interface ScrapeRequest {
   // QUERY (RFC 9341) is included — safe verb, body carries the query params.
   method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE" | "HEAD" | "OPTIONS" | "TRACE" | "QUERY"
   body?: string
+  // Per-request proxy override — bypasses the server-configured proxy pool for this call.
+  proxy?: string
 }
 
 export interface TierResult {
@@ -72,6 +74,8 @@ export interface FlareSolverrRequest {
   maxTimeout?: number
   postData?: string
   headers?: Record<string, string>
+  // TRAWL extension (not part of the FlareSolverr v2 contract) — per-request proxy override.
+  proxy?: string
 }
 
 export interface FlareSolverrResponse {
