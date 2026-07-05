@@ -223,8 +223,11 @@ export class BrowserPool {
 // A fresh context (no prior cookies/localStorage/service workers) gets CF managed-mode
 // treatment — challenge resolves in 3-4s vs ~40s for warm/reused contexts.
 // biome-ignore lint/suspicious/noExplicitAny: camoufox-js doesn't export BrowserContext type
-export const newFreshContext = async (browser: any): Promise<any> => {
-  const context = await browser.newContext({ viewport: null })
+export const newFreshContext = async (browser: any, options?: { proxy?: string }): Promise<any> => {
+  const context = await browser.newContext({
+    viewport: null,
+    ...(options?.proxy ? { proxy: { server: options.proxy } } : {}),
+  })
   await context.addInitScript(() => {
     window.onerror = () => true
     window.addEventListener(
