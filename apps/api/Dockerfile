@@ -20,7 +20,23 @@ COPY apps/docs/package.json        ./apps/docs/
 # multi-stage Docker builds: transitive deps not symlinked (oven-sh/bun#23524,
 # e.g. @sinclair/typebox via elysia) and a store-population race producing
 # EISDIR on freshly-linked packages (oven-sh/bun#29489, e.g. camoufox-js).
-RUN bun install --frozen-lockfile --production --linker=hoisted
+# The `--omit=dev` flag is the modern spelling — `--production` alone leaves workspace
+# devDeps installed (bun 1.3.x quirk). Prune better-sqlite3 sources + unused impit
+# platform binaries inside this stage so the subsequent COPY --from=deps in stage 3
+# pulls a smaller layer (Docker layers are unions, not diffs — can't shrink post-COPY).
+RUN bun install --frozen-lockfile --production --omit=dev --linker=hoisted \
+ && find node_modules -path '*/better-sqlite3*/deps' -prune -exec rm -rf {} + \
+ && find node_modules -path '*/better-sqlite3*/src'   -prune -exec rm -rf {} + \
+ && find node_modules -path '*/better-sqlite3*' -name '*.md'  -delete \
+ && find node_modules -path '*/better-sqlite3*' -name '*.gyp' -delete \
+ && find node_modules -path '*/better-sqlite3*' -name '*.c'   -delete \
+ && find node_modules -path '*/better-sqlite3*' -name '*.h'   -delete \
+ && find node_modules -path '*/better-sqlite3*' -name '*.map' -delete \
+ && rm -rf node_modules/typescript node_modules/bun-types node_modules/@types \
+ && rm -rf node_modules/impit-linux-arm64-musl \
+         node_modules/impit-linux-x64-musl \
+         node_modules/impit-darwin-* \
+         node_modules/impit-win32-*
 
 # ── Stage 2: fetch the Camoufox Firefox binary (pinned version) ─────
 FROM oven/bun:1.3.14 AS camoufox
@@ -89,16 +105,6 @@ COPY --from=deps              /app/node_modules  /app/node_modules
 RUN strip --strip-all /usr/local/bin/bun 2>/dev/null || true \
  && find /opt/camoufox -type f \( -name 'firefox' -o -name 'firefox-bin' -o -name '*.so*' \) \
         -exec strip --strip-unneeded {} + 2>/dev/null || true
-
-# Prune better-sqlite3's C source/docs/binding.gyp — keeps only the .node binary +
-# JS wrapper that the runtime actually loads. Saves ~12 MB.
-RUN find /app/node_modules -path '*/better-sqlite3*/deps' -prune -exec rm -rf {} + \
- && find /app/node_modules -path '*/better-sqlite3*/src'   -prune -exec rm -rf {} + \
- && find /app/node_modules -path '*/better-sqlite3*' -name '*.md'  -delete \
- && find /app/node_modules -path '*/better-sqlite3*' -name '*.gyp' -delete \
- && find /app/node_modules -path '*/better-sqlite3*' -name '*.c'   -delete \
- && find /app/node_modules -path '*/better-sqlite3*' -name '*.h'   -delete \
- && find /app/node_modules -path '*/better-sqlite3*' -name '*.map' -delete
 
 COPY packages/types/   /app/packages/types/
 COPY packages/browser/ /app/packages/browser/
