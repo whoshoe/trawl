@@ -36,6 +36,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   strict `ulimit -u` can push per-user thread counts toward the cap while
   `/health` still reports the pool as available. Recycling returns the OS
   to a clean state without dropping Redis-backed session cache entries.
+- `BROWSER_CONTENT_PROCESSES` env var (default `2`) caps Firefox content
+  processes per pooled browser via the `dom.ipc.processCount` Firefox
+  pref. Firefox's default of 8 lets thread count climb when Tier 3/Tier 4
+  churn disposable contexts (see #13). The cap bounds the leak at the
+  source without needing to restart the browser.
+
+### Changed
+- `BROWSER_RECYCLE_AFTER_CONTEXTS` no longer recycles preemptively after
+  every N temporary contexts. The pool now recycles only when Tier 3 or
+  Tier 4 returns a `blocked` / `needs-js` outcome, preserving cookies,
+  `cf_clearance`, and warm fingerprint state across successful solves.
+  This eliminates the HTTP-429 storm observed in single-browser setups
+  where the previous "recycle every N uses" logic left the only browser
+  `restarting=true` for ~13s during every recycle window. See #17.
 
 ### Security
 - Reserved-name header denylist prevents callers from spoofing `cf_clearance`

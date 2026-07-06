@@ -35,7 +35,6 @@ export async function runTier3(
   // challenge evaluation. A fresh context with no prior state gets managed-mode treatment:
   // CF evaluates in under 1s and the challenge resolves in 3-4s total.
   const freshCtx = await newFreshContext(handle.browser, { proxy: proxyUrl })
-  handle.noteTemporaryContext?.("tier3 fresh context")
   const page = await freshCtx.newPage()
 
   try {
@@ -180,6 +179,9 @@ export async function runTier3(
     }
   } finally {
     await page.close().catch(() => {})
-    await freshCtx.close().catch(() => {})
+    // Bound context.close() with a timeout — Camoufox/Firefox occasionally hangs on
+    // close when a content process is wedged, leaking the process until the next
+    // browser recycle. 5s is well above the typical <500ms close path.
+    await Promise.race([freshCtx.close(), new Promise<void>((resolve) => setTimeout(resolve, 5000))]).catch(() => {})
   }
 }

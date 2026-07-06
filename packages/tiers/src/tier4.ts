@@ -40,7 +40,6 @@ export async function runTier4(
       proxy: { server: proxyUrl },
       viewport: null,
     })
-    handle.noteTemporaryContext?.("tier4 proxy context")
     await proxyContext.addInitScript(() => {
       window.onerror = () => true
       window.addEventListener(
@@ -182,6 +181,11 @@ export async function runTier4(
       reason: err instanceof Error ? err.message : String(err),
     }
   } finally {
-    await proxyContext?.close().catch(() => {})
+    // Same timeout-bounded close as tier3 — see comment there.
+    if (proxyContext) {
+      await Promise.race([proxyContext.close(), new Promise<void>((resolve) => setTimeout(resolve, 5000))]).catch(
+        () => {},
+      )
+    }
   }
 }
