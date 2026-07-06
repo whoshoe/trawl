@@ -88,6 +88,7 @@ First run builds the web and docs images locally — takes a couple of minutes. 
 |----------|---------|-------------|
 | `BROWSER_POOL_SIZE` | `3` | Warm browser instances |
 | `BROWSER_ACQUIRE_TIMEOUT_MS` | `15000` | How long `acquire()` polls for a free browser before returning HTTP 429 |
+| `BROWSER_RECYCLE_AFTER_CONTEXTS` | `8` | Restart a browser after this many fresh/proxy contexts; set `0` to disable |
 | `REDIS_URL` | `redis://redis:6379` | Redis connection (set automatically in compose) |
 | `RESIDENTIAL_PROXY_URL` | — | Enables Tier 4 proxy escalation |
 

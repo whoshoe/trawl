@@ -40,6 +40,7 @@ export async function runTier4(
       proxy: { server: proxyUrl },
       viewport: null,
     })
+    handle.noteTemporaryContext?.("tier4 proxy context")
     await proxyContext.addInitScript(() => {
       window.onerror = () => true
       window.addEventListener(

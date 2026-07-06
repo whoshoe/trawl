@@ -18,43 +18,67 @@ export interface BrowserHandle {
   id: number
   context: BrowserContext
   browser: Browser
+  noteTemporaryContext?: (reason: string) => void
 }
 
 interface PoolEntry extends PoolBrowser {
   browser: Browser | null
   context: BrowserContext | null
+  temporaryContextUses: number
+  restartReason?: string
+  restarting?: boolean
 }
+
+type BrowserFactory = () => Promise<{ browser: Browser; context: BrowserContext }>
 
 export class BrowserPool {
   private entries: PoolEntry[] = []
   private poolSize: number
   private acquireTimeoutMs: number
   private pollIntervalMs: number
+  private recycleAfterTemporaryContexts: number
+  private browserFactory?: BrowserFactory
   private healthInterval: ReturnType<typeof setInterval> | null = null
 
   constructor({
     poolSize,
     acquireTimeoutMs = 15_000,
     pollIntervalMs = 100,
+    recycleAfterTemporaryContexts = 8,
+    browserFactory,
   }: {
     poolSize: number
     acquireTimeoutMs?: number
     pollIntervalMs?: number
+    recycleAfterTemporaryContexts?: number
+    browserFactory?: BrowserFactory
   }) {
     this.poolSize = poolSize
     this.acquireTimeoutMs = acquireTimeoutMs
     this.pollIntervalMs = pollIntervalMs
+    this.recycleAfterTemporaryContexts = recycleAfterTemporaryContexts
+    this.browserFactory = browserFactory
   }
 
   async init(): Promise<void> {
     for (let i = 0; i < this.poolSize; i++) {
       const { browser, context } = await this.launchBrowser()
-      this.entries.push({ id: i, busy: false, restartCount: 0, healthy: true, browser, context })
+      this.entries.push({
+        id: i,
+        busy: false,
+        restartCount: 0,
+        healthy: true,
+        browser,
+        context,
+        temporaryContextUses: 0,
+      })
       console.log(`[pool] browser ${i + 1}/${this.poolSize} ready`)
     }
   }
 
   private async launchBrowser(): Promise<{ browser: Browser; context: BrowserContext }> {
+    if (this.browserFactory) return this.browserFactory()
+
     // Camoufox patches fingerprint data at the C++/Juggler level — not via JS injection.
     // CF's JS cannot detect these patches the way it detects overrides of window.chrome,
     // plugins, WebGL etc. Same browser Byparr uses.
@@ -117,7 +141,14 @@ export class BrowserPool {
         entry.busy = true
         entry.lastDomain = domain
         entry.lastUsedAt = Date.now()
-        resolve({ id: entry.id, context: entry.context, browser: entry.browser })
+        resolve({
+          id: entry.id,
+          context: entry.context,
+          browser: entry.browser,
+          noteTemporaryContext: (reason: string) => {
+            this.noteTemporaryContext(entry, reason)
+          },
+        })
         return true
       }
 
@@ -138,13 +169,22 @@ export class BrowserPool {
   }
 
   private pickEntry(domain?: string): PoolEntry | null {
-    const available = this.entries.filter((e) => !e.busy && e.healthy && e.context)
+    const available = this.entries.filter((e) => !e.busy && !e.restarting && e.healthy && e.context)
     if (available.length === 0) return null
     if (domain) {
       const sticky = available.find((e) => e.lastDomain === domain)
       if (sticky) return sticky
     }
     return available[0]
+  }
+
+  private noteTemporaryContext(entry: PoolEntry, reason: string): void {
+    if (this.recycleAfterTemporaryContexts <= 0) return
+
+    entry.temporaryContextUses++
+    if (entry.temporaryContextUses >= this.recycleAfterTemporaryContexts) {
+      entry.restartReason = `${reason}; ${entry.temporaryContextUses} temporary contexts used`
+    }
   }
 
   release(id: number): void {
@@ -157,6 +197,9 @@ export class BrowserPool {
       const pages: unknown[] = entry.context.pages() ?? []
       for (const p of pages) (p as { close: () => Promise<void> }).close().catch(() => {})
     }
+    if (entry.restartReason) {
+      void this.restartEntry(entry, entry.restartReason)
+    }
   }
 
   startHealthCheck(): void {
@@ -168,15 +211,22 @@ export class BrowserPool {
       if (entry.busy) continue
       if (!(entry.browser?.isConnected() ?? false)) {
         console.warn(`[pool] browser ${entry.id} disconnected, restarting`)
-        await this.restartEntry(entry)
+        await this.restartEntry(entry, "browser disconnected")
       } else {
         entry.healthy = true
       }
     }
   }
 
-  private async restartEntry(entry: PoolEntry): Promise<void> {
+  private async restartEntry(entry: PoolEntry, reason = "manual restart"): Promise<void> {
+    if (entry.restarting) {
+      entry.restartReason ??= reason
+      return
+    }
+    entry.restarting = true
     entry.healthy = false
+    entry.restartReason = undefined
+    console.warn(`[pool] browser ${entry.id} restarting: ${reason}`)
     try {
       await entry.context?.close()
     } catch {}
@@ -190,20 +240,24 @@ export class BrowserPool {
       entry.browser = browser
       entry.context = context
       entry.healthy = true
+      entry.temporaryContextUses = 0
       entry.restartCount++
       console.log(`[pool] browser ${entry.id} restarted (total: ${entry.restartCount})`)
     } catch (err) {
       console.error(`[pool] browser ${entry.id} failed to restart:`, err)
+    } finally {
+      entry.restarting = false
     }
   }
 
   getStats(): PoolStats {
     const busy = this.entries.filter((e) => e.busy).length
+    const available = this.entries.filter((e) => !e.busy && !e.restarting && e.healthy && e.context).length
     const totalRestarts = this.entries.reduce((sum, e) => sum + e.restartCount, 0)
     return {
       total: this.poolSize,
       busy,
-      available: this.poolSize - busy,
+      available,
       restarts: totalRestarts,
       avgRestarts: totalRestarts / this.poolSize,
     }

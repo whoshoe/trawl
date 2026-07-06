@@ -119,6 +119,7 @@ Synology note: many Synology NAS units (DSM 7.x on J4125 / older hardware) ship 
 | ---------------------------- | ------------------------ | ------------------------------------------------------------------------ |
 | `BROWSER_POOL_SIZE`          | `3`                      | Warm Camoufox Firefox instances                                          |
 | `BROWSER_ACQUIRE_TIMEOUT_MS` | `15000`                  | How long `acquire()` polls for a free browser before HTTP 429 is returned |
+| `BROWSER_RECYCLE_AFTER_CONTEXTS` | `8`                  | Restart a browser after this many fresh/proxy contexts; set `0` to disable |
 | `SESSION_TTL_SECONDS`        | `3600`                   | Redis session cache TTL (seconds)                                        |
 | `REDIS_URL`                  | `redis://localhost:6379` | Redis connection string                                                  |
 | `RESIDENTIAL_PROXY_URL`      | —                        | Enables Tier 4 proxy escalation                                          |

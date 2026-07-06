@@ -20,6 +20,7 @@ const POOL_SIZE = Number(process.env.BROWSER_POOL_SIZE ?? "3")
 // Tune lower for fast-fail feedback in dev; tune higher for very heavy upstream targets.
 const ACQUIRE_TIMEOUT_MS = Number(process.env.BROWSER_ACQUIRE_TIMEOUT_MS ?? "15000")
 const SESSION_TTL = Number(process.env.SESSION_TTL_SECONDS ?? "3600")
+const RECYCLE_AFTER_TEMPORARY_CONTEXTS = Number(process.env.BROWSER_RECYCLE_AFTER_CONTEXTS ?? "8")
 
 // PROXY_URL / RESIDENTIAL_PROXY_URL accept a comma-separated list of proxy URLs (a single
 // URL still works — it's just a 1-element list). *_LIST_FILE is an alternative source
@@ -49,7 +50,11 @@ async function initPool() {
     console.warn("[api] session cache unavailable — Tier 2 disabled:", err instanceof Error ? err.message : err)
   }
 
-  pool = new BrowserPool({ poolSize: POOL_SIZE, acquireTimeoutMs: ACQUIRE_TIMEOUT_MS })
+  pool = new BrowserPool({
+    poolSize: POOL_SIZE,
+    acquireTimeoutMs: ACQUIRE_TIMEOUT_MS,
+    recycleAfterTemporaryContexts: RECYCLE_AFTER_TEMPORARY_CONTEXTS,
+  })
   await pool.init()
   pool.startHealthCheck()
   console.log(`[api] ready — all ${POOL_SIZE} browser${POOL_SIZE === 1 ? "" : "s"} warm`)
