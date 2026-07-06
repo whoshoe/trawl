@@ -28,6 +28,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `ScrapeRequest` field renamed from `postData` → `body` for REST-idiomatic
   naming. (`FlareSolverrRequest.postData` is unchanged because it's the
   upstream wire contract.)
+- `BROWSER_RECYCLE_AFTER_CONTEXTS` env var (default `8`, set `0` to disable)
+  bounds long-running browser process growth by recycling the pooled
+  Camoufox/Firefox instance after a configurable number of Tier 3/Tier 4
+  temporary context creations. Some Camoufox/Firefox builds retain child
+  content processes after `context.close()`, which on shared hosts with
+  strict `ulimit -u` can push per-user thread counts toward the cap while
+  `/health` still reports the pool as available. Recycling returns the OS
+  to a clean state without dropping Redis-backed session cache entries.
 
 ### Security
 - Reserved-name header denylist prevents callers from spoofing `cf_clearance`
