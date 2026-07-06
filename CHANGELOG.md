@@ -34,6 +34,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   cookies, overriding the per-tier `User-Agent`, or rewriting routing signals
   (`X-Forwarded-For`, `Host`) during a POST bypass flow
 
+### Fixed
+- `/v1` now accepts Prowlarr's Cardigann `FlareSolverrProxy` object shape
+  (`{url, username, password}`) for the per-request `proxy` field, instead of
+  crashing with `proxy.server: expected string, got object` when Prowlarr sends
+  it through (issue #12). The boundary normalises both the object form and a
+  plain URL string into a single URL string before the orchestrator forwards
+  it to Playwright/Camoufox. Credentials are URL-encoded so embedded `@`/`:`
+  characters survive the round-trip.
+
 ### Limitations
 - The Playwright `page.route(url, …)` interceptor only handles the first
   top-frame GET to that exact URL. Server redirects to a different URL, XHR

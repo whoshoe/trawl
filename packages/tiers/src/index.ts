@@ -10,7 +10,7 @@ export {
 } from "./detect"
 export type { OrchestratorDeps } from "./orchestrator"
 export { scrape } from "./orchestrator"
-export { ProxyPool } from "./proxyRotator"
+export { normalizeProxy, ProxyPool } from "./proxyRotator"
 export {
   isValidMethod,
   RESERVED_HEADER_NAMES,
