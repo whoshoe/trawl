@@ -14,6 +14,13 @@ export interface Tier2Result extends TierResult {
   captchasSolved?: string[]
 }
 
+// Playwright's cookie.sameSite is `"Strict" | "Lax" | "None"` but can be undefined when
+// the cookie was set without an explicit sameSite. Normalize to the Playwright literal
+// union with a default of "Lax" (matches browser default for same-origin cookies).
+function normalizeSameSite(s: string | undefined): "Strict" | "Lax" | "None" {
+  return s === "Strict" || s === "Lax" || s === "None" ? s : "Lax"
+}
+
 export async function runTier2(
   url: string,
   handle: BrowserHandle,
@@ -39,7 +46,7 @@ export async function runTier2(
         expires: c.expires,
         httpOnly: c.httpOnly,
         secure: c.secure,
-        sameSite: (c.sameSite as "Strict" | "Lax" | "None") ?? "Lax",
+        sameSite: normalizeSameSite(c.sameSite),
       })),
     )
 
