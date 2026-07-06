@@ -3,8 +3,39 @@
 // fetches or trusts any third-party proxy list.
 
 import { readFileSync } from "node:fs"
+import type { ProxyEndpointInput } from "@trawl/types"
 
 const COOLDOWN_MS = 5 * 60 * 1000 // 5 minutes — matches the plan's "time-boxed cooldown"
+
+// Normalizes the per-request `proxy` field at the API boundary into a single URL string.
+// Prowlarr's Cardigann flow serializes proxy config as an object {url, username, password};
+// other callers send a plain URL string. Playwright's `newContext({proxy})` expects
+// `server` to be a string — passing the object through untyped crashes with
+// `proxy.server: expected string, got object` (issue #12).
+//
+// Returns undefined for null/undefined/empty/non-string-non-object inputs.
+// Credentials (if present in the object form) are URL-encoded and embedded into the URL
+// so downstream code keeps treating proxy as a single string.
+export function normalizeProxy(input: ProxyEndpointInput | null | undefined): string | undefined {
+  if (input == null) return undefined
+  if (typeof input === "string") {
+    const trimmed = input.trim()
+    return trimmed ? trimmed : undefined
+  }
+  if (typeof input === "object") {
+    const server =
+      typeof input.url === "string" ? input.url : typeof input.server === "string" ? input.server : undefined
+    if (!server) return undefined
+    const user = typeof input.username === "string" && input.username.length > 0 ? input.username : undefined
+    const pass = typeof input.password === "string" && input.password.length > 0 ? input.password : undefined
+    if (!user && !pass) return server
+    const schemeMatch = server.match(/^([a-z][a-z0-9+\-.]*:\/\/)(.*)$/i)
+    if (!schemeMatch) return server
+    const creds = `${encodeURIComponent(user ?? "")}:${encodeURIComponent(pass ?? "")}`
+    return `${schemeMatch[1]}${creds}@${schemeMatch[2]}`
+  }
+  return undefined
+}
 
 interface ProxyState {
   url: string
