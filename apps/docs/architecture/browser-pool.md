@@ -45,6 +45,7 @@ new BrowserPool({
   acquireTimeoutMs: 15000,    // BROWSER_ACQUIRE_TIMEOUT_MS — 15s default
   pollIntervalMs: 100,        // how often to re-check for an idle browser
   recycleAfterTemporaryContexts: 8,
+  contentProcesses: 2,         // BROWSER_CONTENT_PROCESSES — caps Firefox content procs
 })
 ```
 
@@ -54,7 +55,12 @@ When `acquireTimeoutMs` elapses, the API surfaces the rejection as **HTTP 429** 
 
 `pool.release(id)` marks the browser idle and closes all open pages. `lastDomain` is updated to the domain just served. Cookies are kept to speed up the next request to the same domain.
 
-Tier 3 and Tier 4 create short-lived isolated contexts for fresh challenge solves and proxy escalation. Those contexts are closed by the tier code, but long-running Firefox/Camoufox processes can still retain child content processes after repeated solves. The pool tracks those temporary contexts and restarts the whole browser after `recycleAfterTemporaryContexts` uses so process growth stays bounded. Set `BROWSER_RECYCLE_AFTER_CONTEXTS=0` to disable this recycling.
+Tier 3 and Tier 4 create short-lived isolated contexts for fresh challenge solves and proxy escalation. Those contexts are closed by the tier code, but long-running Firefox/Camoufox processes can still retain child content processes after repeated solves. Two complementary defenses bound this growth:
+
+1. **`contentProcesses` (default `2`)** caps Firefox content processes per browser at launch via the `dom.ipc.processCount` Firefox pref. This is the primary defense — bounds thread/RAM growth at the source regardless of context churn.
+2. **`recycleAfterTemporaryContexts` (default `8`)** is now **recycle-on-suspect**: the orchestrator only flags a browser for recycle when Tier 3/Tier 4 returns `blocked` / `needs-js`. Successful solves preserve cookies, `cf_clearance`, and warm fingerprint state. Set `BROWSER_RECYCLE_AFTER_CONTEXTS=0` to disable this recycling.
+
+See issue #13 (original bug), #17 (recycle-on-suspect trade-off discussion), and the [configuration docs](/getting-started/configuration#browser_recycle_after_contexts) for tuning.
 
 ## Self-healing
 

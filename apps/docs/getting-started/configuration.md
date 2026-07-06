@@ -67,11 +67,22 @@ When the timeout fires, both `/v1` and `/scrape` return **HTTP 429** with the Fl
 
 **Default:** `8`
 
-How many fresh challenge/proxy contexts a pooled browser can create before TRAWL restarts the full browser process. Tier 3 and Tier 4 use short-lived isolated contexts so Cloudflare sees a clean profile, but some Camoufox/Firefox builds can leave content processes behind even after Playwright closes those contexts. Recycling the browser bounds that process growth without changing Redis session-cache TTLs.
+How many `blocked` / `needs-js` outcomes a pooled browser can produce before TRAWL restarts the full browser process. The recycle counter only increments when Tier 3 or Tier 4 reports the upstream actively rejected the browser's profile — successful solves preserve cookies, `cf_clearance`, and warm fingerprint state. This avoids the HTTP-429 storm that occurred when the pool preemptively recycled mid-flight (issue #17).
 
 ```ini
-BROWSER_RECYCLE_AFTER_CONTEXTS=8   # default - bound long-running browser process growth
-BROWSER_RECYCLE_AFTER_CONTEXTS=0   # disable browser recycling
+BROWSER_RECYCLE_AFTER_CONTEXTS=8   # default - recycle after 8 blocked/needs-js outcomes
+BROWSER_RECYCLE_AFTER_CONTEXTS=0   # disable browser recycling entirely
+```
+
+### `BROWSER_CONTENT_PROCESSES`
+
+**Default:** `2`
+
+Caps Firefox content processes per pooled browser via the `dom.ipc.processCount` Firefox pref. Firefox's default of 8 lets thread count climb when Tier 3 / Tier 4 churn disposable contexts (see #13). The cap bounds the leak at the source without paying the recycle cost. Raise if specific targets fail with empty content (rare).
+
+```ini
+BROWSER_CONTENT_PROCESSES=2   # default - conservative cap, lowest RAM/CPU
+BROWSER_CONTENT_PROCESSES=4   # raise if CF/Imperva challenges stall
 ```
 
 ## Session Cache
