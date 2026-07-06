@@ -35,6 +35,7 @@ export async function runTier3(
   // challenge evaluation. A fresh context with no prior state gets managed-mode treatment:
   // CF evaluates in under 1s and the challenge resolves in 3-4s total.
   const freshCtx = await newFreshContext(handle.browser, { proxy: proxyUrl })
+  handle.noteTemporaryContext?.("tier3 fresh context")
   const page = await freshCtx.newPage()
 
   try {

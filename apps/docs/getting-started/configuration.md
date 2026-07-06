@@ -63,6 +63,17 @@ BROWSER_ACQUIRE_TIMEOUT_MS=30000   # tolerate longer queueing on slow targets
 
 When the timeout fires, both `/v1` and `/scrape` return **HTTP 429** with the FlareSolverr v2 error envelope (not a 500).
 
+### `BROWSER_RECYCLE_AFTER_CONTEXTS`
+
+**Default:** `8`
+
+How many fresh challenge/proxy contexts a pooled browser can create before TRAWL restarts the full browser process. Tier 3 and Tier 4 use short-lived isolated contexts so Cloudflare sees a clean profile, but some Camoufox/Firefox builds can leave content processes behind even after Playwright closes those contexts. Recycling the browser bounds that process growth without changing Redis session-cache TTLs.
+
+```ini
+BROWSER_RECYCLE_AFTER_CONTEXTS=8   # default - bound long-running browser process growth
+BROWSER_RECYCLE_AFTER_CONTEXTS=0   # disable browser recycling
+```
+
 ## Session Cache
 
 ### `SESSION_TTL_SECONDS`

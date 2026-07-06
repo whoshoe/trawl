@@ -19,6 +19,8 @@ interface PoolEntry {
   lastUsedAt?: number      // unix timestamp
   restartCount: number
   healthy: boolean
+  temporaryContextUses: number
+  restartReason?: string
 }
 ```
 
@@ -42,6 +44,7 @@ new BrowserPool({
   poolSize: 3,                // BROWSER_POOL_SIZE (default 3)
   acquireTimeoutMs: 15000,    // BROWSER_ACQUIRE_TIMEOUT_MS — 15s default
   pollIntervalMs: 100,        // how often to re-check for an idle browser
+  recycleAfterTemporaryContexts: 8,
 })
 ```
 
@@ -50,6 +53,8 @@ When `acquireTimeoutMs` elapses, the API surfaces the rejection as **HTTP 429** 
 ## Release
 
 `pool.release(id)` marks the browser idle and closes all open pages. `lastDomain` is updated to the domain just served. Cookies are kept to speed up the next request to the same domain.
+
+Tier 3 and Tier 4 create short-lived isolated contexts for fresh challenge solves and proxy escalation. Those contexts are closed by the tier code, but long-running Firefox/Camoufox processes can still retain child content processes after repeated solves. The pool tracks those temporary contexts and restarts the whole browser after `recycleAfterTemporaryContexts` uses so process growth stays bounded. Set `BROWSER_RECYCLE_AFTER_CONTEXTS=0` to disable this recycling.
 
 ## Self-healing
 
