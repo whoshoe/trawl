@@ -1,5 +1,5 @@
 import type { BrowserHandle } from "@trawl/browser"
-import { FINGERPRINT } from "@trawl/browser"
+import { FINGERPRINT, FINGERPRINT_POOL } from "@trawl/browser"
 import type { Cookie, ScrapeRequest, ScrapeResult, SessionData, TierResult } from "@trawl/types"
 import { normalizeHtml } from "./html"
 import type { ProxyPool } from "./proxyRotator"
@@ -60,11 +60,14 @@ export async function scrape(req: ScrapeRequest, deps: OrchestratorDeps): Promis
     const t1 = await runTier1(req.url, sanitizedHeaders, req.method, req.body)
     emit(t1)
     if (t1.status === "success" && t1.html !== undefined) {
+      // Tier 1 doesn't acquire a browser (it's a plain HTTP fetch). Use a random fingerprint
+      // UA from the pool so even Tier 1 requests don't share a single signature.
+      const tier1UA = FINGERPRINT_POOL[Math.floor(Math.random() * FINGERPRINT_POOL.length)].userAgent
       return {
         url: req.url,
         html: normalizeHtml(t1.html),
         cookies: [],
-        userAgent: FINGERPRINT.userAgent,
+        userAgent: tier1UA,
         statusCode: t1.statusCode ?? 200,
         tier: 1,
         sessionCached: false,
@@ -152,7 +155,7 @@ export async function scrape(req: ScrapeRequest, deps: OrchestratorDeps): Promis
       if (cookies.length > 0) {
         await deps.saveSession(domain, {
           cookies,
-          userAgent: t3.userAgent ?? FINGERPRINT.userAgent,
+          userAgent: t3.userAgent ?? handle.fingerprint.userAgent,
           savedAt: Date.now(),
         })
       }
@@ -208,7 +211,7 @@ export async function scrape(req: ScrapeRequest, deps: OrchestratorDeps): Promis
       if (cookies.length > 0) {
         await deps.saveSession(domain, {
           cookies,
-          userAgent: t4.userAgent ?? FINGERPRINT.userAgent,
+          userAgent: t4.userAgent ?? handle.fingerprint.userAgent,
           savedAt: Date.now(),
         })
       }

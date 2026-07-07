@@ -1,5 +1,6 @@
 import type { PoolBrowser, PoolStats } from "@trawl/types"
 import { Camoufox } from "camoufox-js"
+import { FINGERPRINT_POOL } from "./fingerprint"
 
 // camoufox-js wraps Playwright but doesn't re-export Browser/BrowserContext types.
 // The pool accepts any structurally-compatible browser (Playwright OR patchright) —
@@ -20,6 +21,10 @@ export interface BrowserHandle {
   id: number
   context: BrowserContext
   browser: Browser
+  // Per-instance HTTP-level fingerprint (User-Agent + matching navigator.platform /
+  // locale / timezone). Set at init from FINGERPRINT_POOL so the orchestrator can
+  // send a UA that matches this browser's actual Camoufox-generated platform.
+  fingerprint: (typeof FINGERPRINT_POOL)[number]
   noteTemporaryContext?: (reason: string) => void
 }
 
@@ -29,6 +34,7 @@ interface PoolEntry extends PoolBrowser {
   temporaryContextUses: number
   restartReason?: string
   restarting?: boolean
+  fingerprint: (typeof FINGERPRINT_POOL)[number]
 }
 
 type BrowserFactory = () => Promise<{ browser: Browser; context: BrowserContext }>
@@ -68,7 +74,11 @@ export class BrowserPool {
 
   async init(): Promise<void> {
     for (let i = 0; i < this.poolSize; i++) {
-      const { browser, context } = await this.launchBrowser()
+      // Pick a fingerprint for this instance; the picked OS drives the browser's
+      // navigator.platform, locale, timezone, and the HTTP UA the orchestrator sends.
+      // Shuffled pool (not sequential) so 4 browsers don't all get the same fingerprint.
+      const fingerprint = FINGERPRINT_POOL[i % FINGERPRINT_POOL.length]
+      const { browser, context } = await this.launchBrowser(fingerprint)
       this.entries.push({
         id: i,
         busy: false,
@@ -77,19 +87,48 @@ export class BrowserPool {
         browser,
         context,
         temporaryContextUses: 0,
+        fingerprint,
       })
-      console.log(`[pool] browser ${i + 1}/${this.poolSize} ready`)
+      console.log(`[pool] browser ${i + 1}/${this.poolSize} ready (UA=${fingerprint.platform})`)
     }
   }
 
-  private async launchBrowser(): Promise<{ browser: Browser; context: BrowserContext }> {
+  private async launchBrowser(
+    fingerprint: (typeof FINGERPRINT_POOL)[number],
+  ): Promise<{ browser: Browser; context: BrowserContext }> {
     if (this.browserFactory) return this.browserFactory()
+
+    // Map our platform token → Camoufox's `os` token.
+    const camoufoxOs =
+      fingerprint.platform === "Win32" ? "windows" : fingerprint.platform === "MacIntel" ? "macos" : "linux"
 
     // Camoufox patches fingerprint data at the C++/Juggler level — not via JS injection.
     // CF's JS cannot detect these patches the way it detects overrides of window.chrome,
     // plugins, WebGL etc. Same browser Byparr uses.
+    //
+    // Anti-detection levers we use (in addition to Camoufox's defaults):
+    //   `os`             — random pick per browser: {windows, macos, linux}. Each browser
+    //                     in the pool looks like a different OS to fingerprinters, so
+    //                     cross-browser session correlation becomes harder.
+    //   `screen`         — randomize resolution per browser within realistic bounds.
+    //   `window`         — randomize window size per browser.
+    //   `humanize`       — randomized mouse movement + timing patterns.
+    //   `geoip`          — auto-derive timezone/locale from the server's IP.
+    //   `block_webrtc`   — no IP leak via WebRTC.
+    //   `disable_coop`   — keep cross-origin iframe interactivity (and avoid
+    //                     crossOriginIsolated being false-detectable).
+    //   `main_world_eval` — required for Turnstile's shadow-DOM checkbox.
+    //   `forceScopeAccess` — C++-level cross-origin frame scope, COOP-friendly.
     const browser = await Camoufox({
       headless: true,
+      os: [camoufoxOs],
+      // Screen + window randomization — Camoufox picks from the constraints per launch.
+      // `screen` lets us set min/max bounds; `window` is a single fixed tuple per type
+      // so we pick one realistic value here. The fingerprint will still differ across
+      // browsers because of `os` + `screen` randomization + Camoufox's per-launch
+      // randomization (canvas seed, audio seed, font list, etc).
+      screen: { minWidth: 1280, maxWidth: 2560, minHeight: 720, maxHeight: 1440 },
+      window: [1920, 1080] as [number, number],
       geoip: true,
       humanize: true,
       disable_coop: true,
@@ -100,7 +139,10 @@ export class BrowserPool {
       // forceScopeAccess: C++-level patch granting cross-origin frame scope without disabling
       // COOP at the prefs level (which CF detects via window.crossOriginIsolated)
       config: { forceScopeAccess: true },
-      locale: "en-US",
+      // Locale matches the picked fingerprint so navigator.language + HTTP Accept-Language
+      // + browser-side Intl locale all align.
+      locale: fingerprint.locale,
+      timezone: fingerprint.timezone,
       // Cap content processes per browser. Firefox's default (8) lets thread count climb
       // when Tier 3/Tier 4 churn contexts (see #13). Lower cap → bounded OS footprint.
       // `processPrelaunch: false` stops Firefox from pre-warming extra processes eagerly.
@@ -158,6 +200,7 @@ export class BrowserPool {
           id: entry.id,
           context: entry.context,
           browser: entry.browser,
+          fingerprint: entry.fingerprint,
           noteTemporaryContext: (reason: string) => {
             this.noteTemporaryContext(entry, reason)
           },
@@ -252,7 +295,10 @@ export class BrowserPool {
     entry.browser = null
     entry.context = null
     try {
-      const { browser, context } = await this.launchBrowser()
+      // On restart, keep the entry's original fingerprint so this browser instance
+      // keeps its identity across restart cycles (otherwise cross-session correlation
+      // becomes trivial).
+      const { browser, context } = await this.launchBrowser(entry.fingerprint)
       entry.browser = browser
       entry.context = context
       entry.healthy = true
